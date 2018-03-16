@@ -1,6 +1,6 @@
 %{
 #include "heading.h"
-//global
+
 int yyerror (char* s);
 int yylex (void);
 int tmpcount = 0;
@@ -8,14 +8,21 @@ int lblcount = 0;
 int paramVal = 0;
 bool param_open = false;
 bool semanticError = false;
-ofstream os;
-const char* reserved[] = {"this_is_a_test","function","beginparams","endparams","beginlocals","endlocals","beginbody","integer","array",
-						"of","if","then","endif","else","while","do","foreach","in","beginloop","endloop","continue",
-						"read","write","true","false","semicolon","colon","comma","lparen","rparen","lsquare","rsquare",
-						"assign","return"};
-						
-vector<string> reservedKey(reserved, reserved + 33); 
-// structures
+
+string reserved[33] ={"function","beginparams","endparams","beginlocals",
+"endlocals","beginbody","integer","array","of","if","then","endif","else",
+"while","do","foreach","in","beginloop","endloop","continue","read","write",
+"true","false","semicolon","colon","comma","lparen","rparen","lsquare","rsquare",
+"assign","return"};
+int arrSize = 33;
+
+bool var_not_declared(string);
+string generate1();
+string generate2();
+
+stack <string> rStack;
+stack <string> pStack;
+
 vector <string> idtypeVector; //identifier type vector, integer or array
 vector <string> idVector; //identifier vector
 vector <string> opVector; //operand vector
@@ -25,20 +32,15 @@ vector <string> statementVector; // statement vector
 vector <vector <string> > forvectorVector; // for statement vector vector
 vector <vector <string> > loopvectorVector; // loop statement vector vector
 vector <vector <string> > ifvectorVector; // if statement vector vector
-stack <string> rStack;
-stack <string> pStack;
-//functions
-bool undeclaredVariable(string);
-string generate1();
-string generate2();
-bool wasDeclared(string);
+
+
 %}
 %union{
 int val;
 string* op_val;
 }
 %start	program
-%token	FUNCTION BEGINPARAMS ENDPARAMS BEGINLOCALS ENDLOCALS BEGINBODY ENDBODY INTEGER ARRAY OF IF THEN ENDIF ELSE WHILE DO FOREACH IN BEGINLOOP ENDLOOP CONTINUE READ WRITE TRUE FALSE SEMICOLON COLON COMMA LPAREN RPAREN LSQUARE RSQUARE ASSIGN RETURN
+%token	FUNCTION BEGIN_PARAMS END_PARAMS BEGIN_LOCALS END_LOCALS BEGIN_BODY END_BODY INTEGER ARRAY OF IF THEN ENDIF ELSE WHILE DO FOREACH IN BEGINLOOP ENDLOOP CONTINUE READ WRITE TRUE FALSE SEMICOLON COLON COMMA L_PAREN R_PAREN L_SQUARE_BRACKET R_SQUARE_BRACKET ASSIGN RETURN
 %token <val> NUMBER
 %token <op_val> IDENTIFIER
 %left MULT DIV MOD ADD SUB 
@@ -49,7 +51,6 @@ string* op_val;
 %%
 program: 	functions
 			{
-				os.close();
 				bool mainBool = false;
 				for(unsigned int i = 0; i < fVector.size(); ++i){
 					if(fVector.at(i) == "main"){
@@ -57,10 +58,8 @@ program: 	functions
 					}
 				}
 				if (!mainBool) {
-					cerr << "Semantic error: did not define a main function" << endl;
+					cerr << "Error line: did not define a main function" << endl;
 					semanticError = true;
-					os.open("test152.mil", ofstream::trunc);
-					os.close();
 				}
 			}
 	 	;
@@ -73,13 +72,13 @@ functionH: FUNCTION IDENTIFIER
 			cout << "func " << *($2) << endl;
 		}
 		
-beginParams: BEGINPARAMS
+beginParams: BEGIN_PARAMS
 			{ param_open = true;}
 			;
-endParams:	ENDPARAMS
+endParams:	END_PARAMS
 			{ param_open = false;}
 			;
-function:	functionH SEMICOLON beginParams dec endParams BEGINLOCALS dec ENDLOCALS BEGINBODY statementHelper ENDBODY
+function:	functionH SEMICOLON beginParams dec endParams BEGIN_LOCALS dec END_LOCALS BEGIN_BODY statementHelper END_BODY
 			{
 				int num_param = 0;
 				int idVector_size = idVector.size();
@@ -87,11 +86,9 @@ function:	functionH SEMICOLON beginParams dec endParams BEGINLOCALS dec ENDLOCAL
 					for(int i = 0; i < idVector_size; ++i) {
 						if (idtypeVector.at(i) == "INTEGER") {
 							cout<<". " << idVector.at(i) << endl;
-							os << ". " << idVector.at(i) << endl;
 						}
 						else {
 							cout <<".[] "<< idVector.at(i)<< ", " << idtypeVector.at(i) <<endl;
-							os << ".[] " << idVector.at(i) << ", " << idtypeVector.at(i) << endl;
 						}
 					}
 				}
@@ -100,7 +97,6 @@ function:	functionH SEMICOLON beginParams dec endParams BEGINLOCALS dec ENDLOCAL
 				while (!pVector.empty()) {
 					string paramVecFront = pVector.front();
 					cout << "= " << paramVecFront<< ", $" << num_param << endl;
-					os << "= " << paramVecFront << ", $" << num_param << endl;
 					pVector.erase(pVector.begin());
 					num_param += 1;
 				} 
@@ -108,21 +104,14 @@ function:	functionH SEMICOLON beginParams dec endParams BEGINLOCALS dec ENDLOCAL
 				if (statementVector_size != 0) {
 					for (int i=0; i<statementVector_size; ++i) {
 	                	cout<<statementVector.at(i)<<endl;
-	                	os << statementVector.at(i) << endl;
 					}
 				}
 	            cout << "endfunc" << endl;
-	            os << "endfunc" << endl;
 	            
 	        	idVector.clear();
 	            idtypeVector.clear();
 	            statementVector.clear();
 	            pVector.clear();
-	            if (semanticError) {
-	            	cout << "semanticError!" << endl;
-	            	os.open("test152.mil", ofstream::trunc);
-					os.close();
-	            }
 			}
 		;  
 dec:		declaration SEMICOLON dec
@@ -136,31 +125,27 @@ decHelper1: 	IDENTIFIER COMMA decHelper1
 			{
 				string temp = "_"+ *($1);
 				bool tempBool = false;
-				extern int row;
+				extern int lineNumber;
 				for(unsigned int i = 0; i < idVector.size(); ++i) {
 					if(idVector.at(i) == temp) {
-						cerr << "Semantic Error: symbol \"" << temp << "\" has already been declared on line" << row  << endl;
+						cerr << "Error line: symbol \"" << temp << "\" has already been declared on line" << lineNumber  << endl;
 						tempBool = true;
 						break;
 					}
 				} 
 				if (tempBool) {
 					semanticError = true;
-					os.open("test152.mil", ofstream::trunc);
-					os.close();
 				}
-				extern int row;
+				extern int lineNumber;
 				bool reservedErr = false;
-				for(unsigned int i = 0; i < reservedKey.size(); ++i){
-					if(*($1) == reservedKey.at(i)){
-						cerr << "Semantic error: used reserved word for variable on line" << row << endl;
+				for(int i = 0; i < arrSize; ++i){
+					if(*($1) == reserved[i]){
+						cerr << "Error line: used reserved word for variable on line" << lineNumber << endl;
 						reservedErr = true;
 					}
 				}
 				if (reservedErr) {
 					semanticError = true;
-					os.open("test152.mil", ofstream::trunc);
-					os.close();
 				}
 				string int_type = "INTEGER";
 				if (temp.size() != 0) {
@@ -172,30 +157,26 @@ decHelper1: 	IDENTIFIER COMMA decHelper1
 			{
 				string temp = "_" + *($1);
 				bool tempBool = false;
-				extern int row;
+				extern int lineNumber;
 				for(unsigned int i = 0; i < idVector.size(); ++i) {
 					if(idVector.at(i) == temp) {
-						cerr << "Semantic Error: symbol \"" << temp << "\" has already been declared on line" << row  << endl;
+						cerr << "Error line: symbol \"" << temp << "\" has already been declared on line" << lineNumber  << endl;
 						tempBool = true;
 						break;
 					}
 				} 
 				if (tempBool) {
 					semanticError = true;
-					os.open("test152.mil", ofstream::trunc);
-					os.close();
 				}
 				bool reservedErr = false;
-				for(unsigned int i = 0; i < reservedKey.size(); ++i){
-					if(*($1) == reservedKey.at(i)){
-						cerr << "Semantic error: using reserved keyword for variable on line" << row << endl;
+				for(int i = 0; i < arrSize; ++i){
+					if(*($1) == reserved[i]){
+						cerr << "Error line: using reserved keyword for variable on line" << lineNumber << endl;
 						reservedErr = true;
 					}
 				}
 				if (reservedErr) {
 					semanticError = true;
-					os.open("test152.mil", ofstream::trunc);
-					os.close();
 				}
 				if (temp.size() != 0) {
 					idVector.push_back(temp);
@@ -205,14 +186,14 @@ decHelper1: 	IDENTIFIER COMMA decHelper1
 				}
 			}
 		;
-decHelper2:	ARRAY LSQUARE NUMBER RSQUARE OF INTEGER 
+decHelper2:	ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER 
 			{
 				stringstream num;
 				num << $3;
 				int i = ($3);
 				bool tempArr = false;
 				if(i <= 0){
-					cerr << "Semantic error: declared array of size less than or equal to 0" << endl;
+					cerr << "Error line: declared array of size less than or equal to 0" << endl;
 					tempArr = true;
 				}
 				if (tempArr) {
@@ -241,16 +222,16 @@ statement:	varStatement {}
 varStatement:	IDENTIFIER ASSIGN expression 
 			{
 				string temp = "_" + *($1);
-				if (undeclaredVariable(temp)) {
+				if (var_not_declared(temp)) {
 					semanticError = true;
 				}
 				string identifier_statement = "= " + temp + ", " + opVector.at(opVector.size() - 1);
-				extern int row;
+				extern int lineNumber;
 				for (int i = 0; i < idtypeVector.size(); ++i) {
 					if (idVector.at(i) == temp) {
 						if (idtypeVector.at(i) != "INTEGER") {
 							semanticError = true;
-							cerr << "Error line: " << row << ", used array without specifying index" << endl;
+							cerr << "Error line: " << lineNumber << ", used array without specifying index" << endl;
 						}
 					}
 				}
@@ -261,7 +242,7 @@ varStatement:	IDENTIFIER ASSIGN expression
 					opVector.pop_back();
 				}
 			}
-		|	IDENTIFIER LSQUARE expression RSQUARE ASSIGN expression 
+		|	IDENTIFIER L_SQUARE_BRACKET expression R_SQUARE_BRACKET ASSIGN expression 
 			{
 				string array_name = "_" + *($1);
 				string array_source = opVector.at(opVector.size() - 1);
@@ -273,12 +254,13 @@ varStatement:	IDENTIFIER ASSIGN expression
 				if (opVector.size() != 0) {
 					opVector.pop_back();
 				}
-				extern int row;
+				extern int lineNumber;
 				for (int i = 0; i < idtypeVector.size(); ++i) {
 					if (idVector.at(i) == array_name) {
 						if (idtypeVector.at(i) == "INTEGER") {
 							semanticError = true;						
-							cerr << "Error line: " << row << ", specified index with used variable"<< endl;
+							cerr << "Error line: " << lineNumber << ", specified index with used variable"<< endl;
+							break;
 						}
 					}
 				}
@@ -454,45 +436,13 @@ doHelper2:	DO BEGINLOOP
 				}
 			}
 	;
-foreachStatement: foreachHelper1 statementHelper ENDLOOP
-			{
-				statementVector.push_back(":= " + forvectorVector.back().at(0));
-				statementVector.push_back(": " + forvectorVector.back().at(2));
-			}
-		;
-// ~~~~~~~~~~~~ NOT DONE ~~~~~~~~~~~~~~~~ //
-foreachHelper1: foreachHelper2 forExpression BEGINLOOP //IDENTIFIER IN IDENTIFIER BEGINLOOP
-			{
-				statementVector.push_back("?:= " + forvectorVector.back().at(1) + ", " +  opVector.back());
-				statementVector.push_back(":= " + forvectorVector.back().at(2));
-				statementVector.push_back(": " + forvectorVector.back().at(1));
-			}
-		;
-		
-foreachHelper2: FOREACH
-			{
-				string temp = generate2();
-				
-	            string _false = "conditional_false" + temp; 
-	            string _true = "conditional_true" + temp;
-	            string _loop = "foreach_loop" + temp;
-	            
-	            vector<string> foreach_statements;
-	            foreach_statements.push_back(_loop);
-	            foreach_statements.push_back(_true);
-	            foreach_statements.push_back(_false);
-	            
-	            statementVector.push_back( ": " + _loop);
-	            forvectorVector.push_back(foreach_statements);
-			}
-		;
-forExpression: IDENTIFIER IN IDENTIFIER
-			{}
+foreachStatement: FOREACH IDENTIFIER IN IDENTIFIER BEGINLOOP statementHelper ENDLOOP
+	{}
 		
 readStatement:	READ IDENTIFIER readHelper1 
 			{
 				string temp = "_" + *($2);
-				if (undeclaredVariable(temp)) {
+				if (var_not_declared(temp)) {
 					semanticError = true;
 				}
 				rStack.push(".< " + temp);
@@ -502,7 +452,7 @@ readStatement:	READ IDENTIFIER readHelper1
 					if (!rStack.empty()) rStack.pop();
 				}
 			}
-		|	READ IDENTIFIER LSQUARE expression RSQUARE readHelper1
+		|	READ IDENTIFIER L_SQUARE_BRACKET expression R_SQUARE_BRACKET readHelper1
 			{
 				string temp = generate1();
 				idtypeVector.push_back("INTEGER");
@@ -521,12 +471,12 @@ readStatement:	READ IDENTIFIER readHelper1
 readHelper1:	COMMA IDENTIFIER readHelper1
 			{
 				string temp = "_" + *($2);
-				if (undeclaredVariable(temp)) {
+				if (var_not_declared(temp)) {
 					semanticError = true;
 				}
 				rStack.push(".< " + temp);
 			}
-		|	COMMA IDENTIFIER LSQUARE expression RSQUARE readHelper1
+		|	COMMA IDENTIFIER L_SQUARE_BRACKET expression R_SQUARE_BRACKET readHelper1
 			{
 				string generated_temp = generate1();
 				idtypeVector.push_back("INTEGER");
@@ -556,13 +506,11 @@ writeStatement:	WRITE varTerm writeHelper1
 		;
 continueStatement:	CONTINUE 
 			{
-				extern int row;
+				extern int lineNumber;
 				
 				if (loopvectorVector.size() == 0) {
 					semanticError = true;
-					cerr << "Semantic Error: used continue outside of loop" << row << endl;
-					os.open("test152.mil", ofstream::trunc);
-					os.close();
+					cerr << "Error line: used continue outside of loop" << lineNumber << endl;
 				}
 				if(loopvectorVector.size() < 0 || loopvectorVector.size() > 0) 
 				{
@@ -654,7 +602,7 @@ relationExprHelper:	comp {}
 					
 					opVector.push_back(temp);
 				}
-			| LPAREN boolExpr RPAREN 
+			| L_PAREN boolExpr R_PAREN 
 				{}
 			;
 comp:	expression EQ expression 
@@ -876,14 +824,14 @@ term:	identifierTerm
 				opVector.push_back(temp);
 			}
 		;
-identifierTerm: IDENTIFIER LPAREN identifierH RPAREN 
+identifierTerm: IDENTIFIER L_PAREN identifierH R_PAREN 
 				{
 					while(pStack.empty() == false) 
 					{
 						statementVector.push_back("param " + pStack.top());
 						pStack.pop();
 					}
-					extern int row;
+					extern int lineNumber;
 					bool functionErr = true;
 					string var; 
 					for(unsigned int i  = 0; i < fVector.size(); ++i)
@@ -894,7 +842,7 @@ identifierTerm: IDENTIFIER LPAREN identifierH RPAREN
 						}
 					}
 					if (functionErr) {
-						cerr << "Line Error: " << row << ", function \"" << *($1) << "\" was not declared"<< endl;
+						cerr << "Error line: " << lineNumber << ", function \"" << *($1) << "\" was not declared"<< endl;
 					}
 					string temp = generate1();
 					idVector.push_back(temp);
@@ -945,7 +893,7 @@ varTerm: 	var
 				num << $1;
 				statementVector.push_back("= " + temp + ", " + num.str());
 			}
-		| LPAREN expression RPAREN
+		| L_PAREN expression R_PAREN
 			{
 				while(pStack.size() < 0 || pStack.size() > 0)
                 {
@@ -955,12 +903,12 @@ varTerm: 	var
 		;
 var:		IDENTIFIER 
 			{
-				if (undeclaredVariable("_" + *($1))) {
+				if (var_not_declared("_" + *($1))) {
 					semanticError = true;
 				}
 				opVector.push_back("_" + *($1));
 			}
-		|	IDENTIFIER LSQUARE expression RSQUARE 
+		|	IDENTIFIER L_SQUARE_BRACKET expression R_SQUARE_BRACKET 
 			{
 				string operandLatest = opVector.at(-1 + opVector.size());
 				opVector.pop_back();
@@ -972,10 +920,10 @@ var:		IDENTIFIER
 %%
 int yyerror(string s)
 {
-  extern int row, column;
+  extern int lineNumber, current;
   extern char *yytext;		
   
-  cerr << "Error at line: "<<row<<", column "<<column<<", Unexpected Symbol: \""<<yytext<<"\""<<endl;
+  cerr << "Error at line: "<<lineNumber<<", current "<<current<<", Unexpected Symbol: \""<<yytext<<"\""<<endl;
   exit(0);
 }
 int yyerror(char *s)
@@ -984,7 +932,6 @@ int yyerror(char *s)
 }
 // define functions here
 string generate1(){
-	//DONT TOUCH JACKIE
 	ostringstream sstream;
 	string empty = "";
 	sstream.str(empty);
@@ -994,7 +941,6 @@ string generate1(){
 	return tempvar;
 }
 string generate2(){
-	//DONT TOUCH JACKIE
 	ostringstream sstream;
 	string empty = "";
 	sstream.str(empty);
@@ -1003,17 +949,14 @@ string generate2(){
 	++lblcount;
 	return labelvar;
 }
-bool wasDeclared(string var)
-{
-	return true;
-}
-bool undeclaredVariable(string s) {
-	extern int row;
+
+bool var_not_declared(string s) {
+	extern int lineNumber;
 	for(unsigned int i = 0; i < idVector.size(); i++) {
 		if (idVector.at(i) == s) {
 			return false;
 		}
 	}
-	cerr << "Error Line: " << row << ", used variable: " << s << " was not previously declared" << endl;
+	cerr << "Error line: " << lineNumber << ", " << s << " was not previously declared" << endl;
 	return true;
 }

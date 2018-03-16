@@ -1,86 +1,75 @@
 %{
+#include<unistd.h>
 #include "heading.h"
 #include "tok.h"
-int yyerror(char *s);
+int lineNumber = 1, current = 0;
 %}
-
-	int row = 1;
-	int column = 1;
+COMMENT [##].*
+DIGIT [0-9]
+INVALID1 [0-9_][a-zA-Z0-9_]+
+INVALID2 [a-zA-Z0-9]*[_]+
+ID [a-zA-Z][a-zA-Z0-9_]*[a-zA-Z0-9]*
 
 %%
+{COMMENT}	;
+function	{current += yyleng; return FUNCTION;}
+beginparams	{current += yyleng; return BEGIN_PARAMS;}
+endparams	{current += yyleng; return END_PARAMS;}
+beginlocals	{current += yyleng; return BEGIN_LOCALS;}
+endlocals	{current += yyleng; return END_LOCALS;}
+beginbody	{current += yyleng; return BEGIN_BODY;}
+endbody		{current += yyleng; return END_BODY;}
+integer		{current += yyleng; return INTEGER;}
+array		{current += yyleng; return ARRAY;}
+of		{current += yyleng; return OF;}
+if		{current += yyleng; return IF;}
+then		{current += yyleng; return THEN;}
+endif		{current += yyleng; return ENDIF;}
+else		{current += yyleng; return ELSE;}
+while		{current += yyleng; return WHILE;}
+do		{current += yyleng; return DO;}
+foreach		{current += yyleng; return FOREACH;}
+in	{current += yyleng; return IN;}
+beginloop	{current += yyleng; return BEGINLOOP;}
+endloop		{current += yyleng; return ENDLOOP;}
+continue	{current += yyleng; return CONTINUE;}
+read		{current += yyleng; return READ;}
+write		{current += yyleng; return WRITE;}
+and		{current += yyleng; return AND;}
+or	 {current += yyleng; return OR;}
+not		{current += yyleng; return NOT;}
+true	{current += yyleng; return TRUE;}
+false		{current += yyleng; return FALSE;}
+return	{current += yyleng; return RETURN;}
+"-"		{current += yyleng; return SUB;}
+"+"		{current += yyleng; return ADD;}
+"*" 		{current += yyleng; return MULT;}
+"/"		 {current += yyleng; return DIV;}
+"%"		 {current += yyleng; return MOD;}
+"=="		{current += yyleng; return EQ;}
+"<>"		{current += yyleng; return NEQ;}
+"<" 		{current += yyleng; return LT;}
+">"		{current += yyleng; return GT;}
+"<="		{current += yyleng; return LTE;}
+">="		{current += yyleng; return GTE;}
 
-function	{column=column+strlen(yytext);return FUNCTION;}
-beginparams	{column=column+strlen(yytext);return BEGINPARAMS;}
-endparams	{column=column+strlen(yytext);return ENDPARAMS;}
-beginlocals	{column=column+strlen(yytext);return BEGINLOCALS;}
-endlocals	{column=column+strlen(yytext);return ENDLOCALS;}
-beginbody	{column=column+strlen(yytext);return BEGINBODY;}
-endbody		{column=column+strlen(yytext);return ENDBODY;}
-integer		{column=column+strlen(yytext);return INTEGER;}
-array		{column=column+strlen(yytext);return ARRAY;}
-of		{column=column+strlen(yytext);return OF;}
-if		{column=column+strlen(yytext);return IF;}
-then		{column=column+strlen(yytext);return THEN;}
-endif		{column=column+strlen(yytext);return ENDIF;}
-else		{column=column+strlen(yytext);return ELSE;}
-while		{column=column+strlen(yytext);return WHILE;}
-do		{column=column+strlen(yytext);return DO;}
-foreach		{column=column+strlen(yytext);return FOREACH;}
-in		{column=column+strlen(yytext);return IN;}
-beginloop	{column=column+strlen(yytext);return BEGINLOOP;}
-endloop		{column=column+strlen(yytext);return ENDLOOP;}
-continue	{column=column+strlen(yytext);return CONTINUE;}
-read		{column=column+strlen(yytext);return READ;}
-write		{column=column+strlen(yytext);return WRITE;}
-and		{column=column+strlen(yytext);return AND;}
-or		{column=column+strlen(yytext);return OR;}
-not		{column=column+strlen(yytext);return NOT;}
-true		{column=column+strlen(yytext);return TRUE;}
-false		{column=column+strlen(yytext);return FALSE;}
-return		{column=column+strlen(yytext);return RETURN;}
+";"		{current += yyleng; return SEMICOLON;}
+":"		{current += yyleng; return COLON;}
+","		{current += yyleng; return COMMA;}
+"("		{current += yyleng; return L_PAREN;}
+")"		{current += yyleng; return R_PAREN;}
+"["		{current += yyleng; return L_SQUARE_BRACKET;}
+"]"		{current += yyleng; return R_SQUARE_BRACKET;}
+":="	{current += yyleng; return ASSIGN;}
 
-"-"		{column=column+strlen(yytext);return SUB; }
-"+"		{column=column+strlen(yytext);return ADD;}
-"*"		{column=column+strlen(yytext);return MULT;}
-"/"		{column=column+strlen(yytext);return DIV;}
-"%"		{column=column+strlen(yytext);return MOD;}
+{DIGIT}+ 	{current += yyleng; yylval.val=atoi(yytext); return NUMBER;}
+{INVALID1}		{current += yyleng; printf("invalid ID: identifiers can not start with a number or underscore %s line:%d position:%d\n", yytext, lineNumber, current); exit(0);}
+{INVALID2}	{current += yyleng; printf("invalid ID: identifiers can not end with number or underscore %s line:%d position:%d\n",yytext, lineNumber, current); exit(0);}
+{ID}		{current += yyleng; yylval.op_val=new std::string(yytext); return IDENTIFIER;}
 
+[ \t]+	{current += yyleng;}
+[\n]		{++lineNumber; current = 1;}
 
-"=="		{column=column+strlen(yytext);return EQ;}
-"<>"		{column=column+strlen(yytext);return NEQ;}
-"<"		{column=column+strlen(yytext);return LT;}
-">"		{column=column+strlen(yytext);return GT;}
-"<="		{column=column+strlen(yytext);return LTE;}
-">="		{column=column+strlen(yytext);return GTE;}
+.		{printf("unrecognized symbol %s line: %d position %d\n:", yytext, lineNumber, current); exit(0);}
 
-
-
-[##].*		row = row + 1; column=1;
-
-
-
-";"		{column=column+strlen(yytext);return SEMICOLON;}
-":"		{column=column+strlen(yytext);return COLON;}
-","		{column=column+strlen(yytext);return COMMA;}
-"("		{column=column+strlen(yytext);return LPAREN;}
-")"		{column=column+strlen(yytext);return RPAREN;}
-"["		{column=column+strlen(yytext);return LSQUARE;}
-"]"		{column=column+strlen(yytext);return RSQUARE;}
-":="		{column=column+strlen(yytext);return ASSIGN;}
-
-
-[0-9]+					{column=column+strlen(yytext);yylval.val=atoi(yytext);return NUMBER;}
-
-[0-9_][a-zA-Z0-9_]+     {printf("Invalid Identifier at line %d, column %d: Identifier \"%s\" must begin with a letter\n",row,column,yytext);column=column+strlen(yytext); exit(1);}
-[a-zA-Z][a-zA-Z0-9_]*[_]               {printf("Invalid Identifier Error at line %d, column %d: Identifier \"%s\" cannot end with an underscore\n",row,column,yytext);column=column+strlen(yytext);exit(1);}
-[a-zA-Z][a-zA-Z0-9_]*[a-zA-Z0-9]*	{column=column+strlen(yytext);yylval.op_val=new std::string(yytext);return IDENTIFIER;}
-
-
-		/*Spaces and Tabs*/
-[ ]         	column=column+1;
-[\t]		column=column+1;
-[\n]		{yylineno++;row=row+1;column=1;}
-
-		/*Unidentified Characters*/
-.		{printf("LEXER Error at line %d, column %d :unrecognized symbol \"%s\"\n",row,column,yytext);exit(1);}
 %%
