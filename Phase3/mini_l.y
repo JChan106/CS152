@@ -885,7 +885,7 @@ identifierTerm: IDENTIFIER LPAREN identifierH RPAREN
 					}
 					extern int row;
 					bool functionErr = true;
-					string var 
+					string var; 
 					for(unsigned int i  = 0; i < fVector.size(); ++i)
 					{
 						if(fVector.at(i) == *($1))

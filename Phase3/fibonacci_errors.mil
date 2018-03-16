@@ -38,18 +38,40 @@ call fibonacci, _tempvar_11
 + _tempvar_12, _tempvar_7, _tempvar_11
 ret _tempvar_12
 endfunc
-func main
+semanticError!
+func meeps
 fibonacciO.O
 . _n
+. _n
+.[] _t, 20
+.[] _he, 0
 . _fib_n
 . _tempvar_13
 . _tempvar_14
 . _tempvar_15
+. _tempvar_16
+. _tempvar_17
+. _tempvar_18
+. _tempvar_19
+. _tempvar_20
+. _tempvar_21
 .< _n
 = _tempvar_13, _n
-param _tempvar_13
-call fibonacci, _tempvar_14
-= _fib_n, _tempvar_14
+= _z, _tempvar_13
+= _tempvar_14, 3
 = _tempvar_15, _fib_n
-.> _tempvar_15
+[]= _fib_n, _tempvar_14, _tempvar_15
+= _tempvar_16, _n
+= _t, _tempvar_16
+= _tempvar_17, _n
+param _tempvar_17
+call THIS_WONT_RUN, _tempvar_18
+= _n, _tempvar_18
+= _tempvar_19, _n
+param _tempvar_19
+call fibonacci, _tempvar_20
+= _fib_n, _tempvar_20
+= _tempvar_21, _fib_n
+.> _tempvar_21
 endfunc
+semanticError!
