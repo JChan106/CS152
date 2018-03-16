@@ -5,6 +5,7 @@ endparams
 beginlocals
 endlocals
 beginbody
+	continue;
 	if (k <= 1) then return 1; endif;
 	return fibonacci(k - 1) + fibonacci(k - 2);
 endbody
@@ -14,10 +15,16 @@ beginparams
 endparams
 beginlocals
 	n : integer;
+	n : integer;
+	t : array [20] of integer;
+	he : array [0] of integer;
 	fib_n : integer;
 endlocals
 beginbody
 	read n;
+	z := n;
+	fib_n[3] := fib_n;
+	t := n;
 	n := MEEPSMEEP(n);
 	fib_n := fibonacci(n);
 	write fib_n;
