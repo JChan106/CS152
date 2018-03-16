@@ -1,0 +1,175 @@
+func main
+. _n
+.[] _a, 1000
+. _j
+. _i
+. _sqrt_n
+. _x
+. _tempvar_0
+. _tempvar_1
+. _tempvar_2
+. _tempvar_3
+. _tempvar_4
+. _tempvar_5
+. _tempvar_6
+. _tempvar_7
+. _tempvar_8
+. _tempvar_9
+. _tempvar_10
+. _tempvar_11
+. _tempvar_12
+. _tempvar_13
+. _tempvar_14
+. _tempvar_15
+. _tempvar_16
+. _tempvar_17
+. _tempvar_18
+. _tempvar_19
+. _tempvar_20
+. _tempvar_21
+. _tempvar_22
+. _tempvar_23
+. _tempvar_24
+. _tempvar_25
+. _tempvar_26
+. _tempvar_27
+. _tempvar_28
+. _tempvar_29
+. _tempvar_30
+. _tempvar_31
+. _tempvar_32
+. _tempvar_33
+. _tempvar_34
+. _tempvar_35
+. _tempvar_36
+. _tempvar_37
+. _tempvar_38
+. _tempvar_39
+. _tempvar_40
+. _tempvar_41
+. _tempvar_42
+. _tempvar_43
+. _tempvar_44
+. _tempvar_45
+. _tempvar_46
+. _tempvar_47
+. _tempvar_48
+. _tempvar_49
+. _tempvar_50
+. _tempvar_51
+. _tempvar_52
+. _tempvar_53
+. _tempvar_54
+. _tempvar_55
+. _tempvar_56
+.< _n
+= _tempvar_0, _n
+= _x, _tempvar_0
+: while_loop_labelvar_0
+= _tempvar_1, _x
+= _tempvar_2, _n
+= _tempvar_3, _x
+/ _tempvar_4, _tempvar_2, _tempvar_3
+> _tempvar_5, _tempvar_1, _tempvar_4
+?:= conditional_true_labelvar_0, _tempvar_5
+:= conditional_false_labelvar_0
+: conditional_true_labelvar_0
+= _tempvar_6, _x
+= _tempvar_7, _n
+= _tempvar_8, _x
+/ _tempvar_9, _tempvar_7, _tempvar_8
++ _tempvar_10, _tempvar_6, _tempvar_9
+= _tempvar_11, 2
+/ _tempvar_12, _tempvar_10, _tempvar_11
+= _x, _tempvar_12
+:= while_loop_labelvar_0
+: conditional_false_labelvar_0
+= _tempvar_13, _x
+= _sqrt_n, _tempvar_13
+= _tempvar_14, 2
+= _i, _tempvar_14
+: while_loop_labelvar_1
+= _tempvar_15, _i
+= _tempvar_16, _n
+<= _tempvar_17, _tempvar_15, _tempvar_16
+?:= conditional_true_labelvar_1, _tempvar_17
+:= conditional_false_labelvar_1
+: conditional_true_labelvar_1
+= _tempvar_18, _i
+= _tempvar_19, 0
+[]= _a, _tempvar_18, _tempvar_19
+= _tempvar_20, _i
+= _tempvar_21, 1
++ _tempvar_22, _tempvar_20, _tempvar_21
+= _i, _tempvar_22
+:= while_loop_labelvar_1
+: conditional_false_labelvar_1
+= _tempvar_23, 2
+= _i, _tempvar_23
+: while_loop_labelvar_2
+= _tempvar_24, _i
+= _tempvar_25, _sqrt_n
+<= _tempvar_26, _tempvar_24, _tempvar_25
+?:= conditional_true_labelvar_2, _tempvar_26
+:= conditional_false_labelvar_2
+: conditional_true_labelvar_2
+= _tempvar_27, _i
+=[] _tempvar_28, _a,_tempvar_27
+= _tempvar_29, 0
+== _tempvar_30, _tempvar_28, _tempvar_29
+?:= if_condition_true__labelvar_3, _tempvar_30
+:= if_condition_false__labelvar_3
+: if_condition_true__labelvar_3
+= _tempvar_31, _i
+= _tempvar_32, _i
++ _tempvar_33, _tempvar_31, _tempvar_32
+= _j, _tempvar_33
+: while_loop_labelvar_4
+= _tempvar_34, _j
+= _tempvar_35, _n
+<= _tempvar_36, _tempvar_34, _tempvar_35
+?:= conditional_true_labelvar_4, _tempvar_36
+:= conditional_false_labelvar_4
+: conditional_true_labelvar_4
+= _tempvar_37, _j
+= _tempvar_38, 1
+[]= _a, _tempvar_37, _tempvar_38
+= _tempvar_39, _j
+= _tempvar_40, _i
++ _tempvar_41, _tempvar_39, _tempvar_40
+= _j, _tempvar_41
+:= while_loop_labelvar_4
+: conditional_false_labelvar_4
+: if_condition_false__labelvar_3
+= _tempvar_42, _i
+= _tempvar_43, 1
++ _tempvar_44, _tempvar_42, _tempvar_43
+= _i, _tempvar_44
+:= while_loop_labelvar_2
+: conditional_false_labelvar_2
+= _tempvar_45, 2
+= _i, _tempvar_45
+: while_loop_labelvar_5
+= _tempvar_46, _i
+= _tempvar_47, _n
+<= _tempvar_48, _tempvar_46, _tempvar_47
+?:= conditional_true_labelvar_5, _tempvar_48
+:= conditional_false_labelvar_5
+: conditional_true_labelvar_5
+= _tempvar_49, _i
+=[] _tempvar_50, _a,_tempvar_49
+= _tempvar_51, 0
+== _tempvar_52, _tempvar_50, _tempvar_51
+?:= if_condition_true__labelvar_6, _tempvar_52
+:= if_condition_false__labelvar_6
+: if_condition_true__labelvar_6
+= _tempvar_53, _i
+.> _tempvar_53
+: if_condition_false__labelvar_6
+= _tempvar_54, _i
+= _tempvar_55, 1
++ _tempvar_56, _tempvar_54, _tempvar_55
+= _i, _tempvar_56
+:= while_loop_labelvar_5
+: conditional_false_labelvar_5
+endfunc

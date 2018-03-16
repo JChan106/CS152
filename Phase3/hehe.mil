@@ -1,0 +1,58 @@
+func fibonacci
+. _k
+. _tempvar_0
+. _tempvar_1
+. _tempvar_2
+. _tempvar_3
+. _tempvar_4
+. _tempvar_5
+. _tempvar_6
+. _tempvar_7
+. _tempvar_8
+. _tempvar_9
+. _tempvar_10
+. _tempvar_11
+. _tempvar_12
+= _k, $0
+= _tempvar_0, _k
+= _tempvar_1, 1
+<= _tempvar_2, _tempvar_0, _tempvar_1
+?:= if_condition_true__labelvar_0, _tempvar_2
+:= if_condition_false__labelvar_0
+: if_condition_true__labelvar_0
+= _tempvar_3, 1
+ret _tempvar_3
+: if_condition_false__labelvar_0
+= _tempvar_4, _k
+= _tempvar_5, 1
+- _tempvar_6, _tempvar_4, _tempvar_5
+param _tempvar_6
+call fibonacci, _tempvar_7
+= _tempvar_8, _k
+= _tempvar_9, 2
+- _tempvar_10, _tempvar_8, _tempvar_9
+param _tempvar_10
+call fibonacci, _tempvar_11
++ _tempvar_12, _tempvar_7, _tempvar_11
+ret _tempvar_12
+endfunc
+func meeps
+. _n
+. _fib_n
+. _tempvar_13
+. _tempvar_14
+. _tempvar_15
+. _tempvar_16
+. _tempvar_17
+.< _n
+= _tempvar_13, _n
+param _tempvar_13
+call MEEPSMEEP, _tempvar_14
+= _n, _tempvar_14
+= _tempvar_15, _n
+param _tempvar_15
+call fibonacci, _tempvar_16
+= _fib_n, _tempvar_16
+= _tempvar_17, _fib_n
+.> _tempvar_17
+endfunc

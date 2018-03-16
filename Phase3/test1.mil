@@ -1,0 +1,182 @@
+func main
+. _n
+. _n
+.[] _a, 1000
+. _n
+.[] _a, 1000
+. _j
+. _i
+. _n
+.[] _a, 1000
+. _j
+. _i
+. _sqrt_n
+. _x
+.< _n
+. _tmp_0
+= _tmp_0, _n
+= _x, _tmp_0
+: while_loop_lbl_0
+. _tmp_1
+= _tmp_1, _x
+. _tmp_2
+= _tmp_2, _n
+. _tmp_3
+= _tmp_3, _x
+. _tmp_4
+/ _tmp_4, _tmp_2, _tmp_3
+. _tmp_5
+> _tmp_5, _tmp_1, _tmp_4
+?:= conditional_true_lbl_0, _tmp_5
+:= conditional_false_lbl_0
+: conditional_true_lbl_0
+. _tmp_6
+= _tmp_6, _x
+. _tmp_7
+= _tmp_7, _n
+. _tmp_8
+= _tmp_8, _x
+. _tmp_9
+/ _tmp_9, _tmp_7, _tmp_8
+. _tmp_10
++ _tmp_10, _tmp_6, _tmp_9
+. _tmp_11
+= _tmp_11, 2
+. _tmp_12
+/ _tmp_12, _tmp_10, _tmp_11
+= _x, _tmp_12
+:= while_loop_lbl_0
+: conditional_false_lbl_0
+. _tmp_13
+= _tmp_13, _x
+= _sqrt_n, _tmp_13
+. _tmp_14
+= _tmp_14, 2
+= _i, _tmp_14
+: while_loop_lbl_1
+. _tmp_15
+= _tmp_15, _i
+. _tmp_16
+= _tmp_16, _n
+. _tmp_17
+<= _tmp_17, _tmp_15, _tmp_16
+?:= conditional_true_lbl_1, _tmp_17
+:= conditional_false_lbl_1
+: conditional_true_lbl_1
+. _tmp_18
+= _tmp_18, _i
+. _tmp_19
+= _tmp_19, 0
+[]= _a, _tmp_18, _tmp_19
+. _tmp_20
+= _tmp_20, _i
+. _tmp_21
+= _tmp_21, 1
+. _tmp_22
++ _tmp_22, _tmp_20, _tmp_21
+= _i, _tmp_22
+:= while_loop_lbl_1
+: conditional_false_lbl_1
+. _tmp_23
+= _tmp_23, 2
+= _i, _tmp_23
+: while_loop_lbl_2
+. _tmp_24
+= _tmp_24, _i
+. _tmp_25
+= _tmp_25, _sqrt_n
+. _tmp_26
+<= _tmp_26, _tmp_24, _tmp_25
+?:= conditional_true_lbl_2, _tmp_26
+:= conditional_false_lbl_2
+: conditional_true_lbl_2
+. _tmp_27
+= _tmp_27, _i
+. _tmp_28
+=[] _tmp_28, _a,_tmp_27
+. _tmp_29
+= _tmp_29, 0
+. _tmp_30
+== _tmp_30, _tmp_28, _tmp_29
+?:= if_condition_true__lbl_3, _tmp_30
+:= if_condition_false__lbl_3
+: if_condition_true__lbl_3
+. _tmp_31
+= _tmp_31, _i
+. _tmp_32
+= _tmp_32, _i
+. _tmp_33
++ _tmp_33, _tmp_31, _tmp_32
+= _j, _tmp_33
+: while_loop_lbl_4
+. _tmp_34
+= _tmp_34, _j
+. _tmp_35
+= _tmp_35, _n
+. _tmp_36
+<= _tmp_36, _tmp_34, _tmp_35
+?:= conditional_true_lbl_4, _tmp_36
+:= conditional_false_lbl_4
+: conditional_true_lbl_4
+. _tmp_37
+= _tmp_37, _j
+. _tmp_38
+= _tmp_38, 1
+[]= _a, _tmp_37, _tmp_38
+. _tmp_39
+= _tmp_39, _j
+. _tmp_40
+= _tmp_40, _i
+. _tmp_41
++ _tmp_41, _tmp_39, _tmp_40
+= _j, _tmp_41
+:= while_loop_lbl_4
+: conditional_false_lbl_4
+: if_condition_false__lbl_3
+. _tmp_42
+= _tmp_42, _i
+. _tmp_43
+= _tmp_43, 1
+. _tmp_44
++ _tmp_44, _tmp_42, _tmp_43
+= _i, _tmp_44
+:= while_loop_lbl_2
+: conditional_false_lbl_2
+. _tmp_45
+= _tmp_45, 2
+= _i, _tmp_45
+: while_loop_lbl_5
+. _tmp_46
+= _tmp_46, _i
+. _tmp_47
+= _tmp_47, _n
+. _tmp_48
+<= _tmp_48, _tmp_46, _tmp_47
+?:= conditional_true_lbl_5, _tmp_48
+:= conditional_false_lbl_5
+: conditional_true_lbl_5
+. _tmp_49
+= _tmp_49, _i
+. _tmp_50
+=[] _tmp_50, _a,_tmp_49
+. _tmp_51
+= _tmp_51, 0
+. _tmp_52
+== _tmp_52, _tmp_50, _tmp_51
+?:= if_condition_true__lbl_6, _tmp_52
+:= if_condition_false__lbl_6
+: if_condition_true__lbl_6
+. _tmp_53
+= _tmp_53, _i
+.> _tmp_53
+: if_condition_false__lbl_6
+. _tmp_54
+= _tmp_54, _i
+. _tmp_55
+= _tmp_55, 1
+. _tmp_56
++ _tmp_56, _tmp_54, _tmp_55
+= _i, _tmp_56
+:= while_loop_lbl_5
+: conditional_false_lbl_5
+endfunc

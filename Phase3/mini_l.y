@@ -1,63 +1,43 @@
 %{
 #include "heading.h"
-
 //global
 int yyerror (char* s);
 int yylex (void);
 int tmpcount = 0;
 int lblcount = 0;
 int paramVal = 0;
-ofstream out_stream;
-
-const char* tok[] = {"chicken","function","beginparams","endparams","beginlocals","endlocals","beginbody","integer","array",
+bool param_open = false;
+bool semanticError = false;
+ofstream os;
+const char* reserved[] = {"this_is_a_test","function","beginparams","endparams","beginlocals","endlocals","beginbody","integer","array",
 						"of","if","then","endif","else","while","do","foreach","in","beginloop","endloop","continue",
 						"read","write","true","false","semicolon","colon","comma","lparen","rparen","lsquare","rsquare",
 						"assign","return"};
 						
-vector<string> tokens(tok, tok + 33); 
-
-bool param_open = false;
-bool error = false;
-
-stringstream ss;
-
+vector<string> reservedKey(reserved, reserved + 33); 
 // structures
-vector <string> param_vector;
-vector <string> function_vector;
-vector <string> identifier_vector;
-vector <string> identifier_type_vector;
-vector <string> operands;
-vector <string> statement_vector;
-
-vector <vector <string> > if_label_vector;
-vector <vector <string> > loop_label_vector;
-vector <vector <string> > for_loop_label_vector;
-
-stack <string> param_stack;
-stack <string> read_stack;
-
-
+vector <string> idtypeVector; //identifier type vector, integer or array
+vector <string> idVector; //identifier vector
+vector <string> opVector; //operand vector
+vector <string> fVector; //function vector
+vector <string> pVector; //parameter vector
+vector <string> statementVector; // statement vector
+vector <vector <string> > forvectorVector; // for statement vector vector
+vector <vector <string> > loopvectorVector; // loop statement vector vector
+vector <vector <string> > ifvectorVector; // if statement vector vector
+stack <string> rStack;
+stack <string> pStack;
 //functions
-string genTmpVar();
-string genLblVar();
-bool unDeclaredVariable(string);
+bool undeclaredVariable(string);
+string generate1();
+string generate2();
 bool wasDeclared(string);
-bool mainExists(vector<string>);
-bool arrSizeZero(int);
-bool functionNotDeclared(string);
-bool usingReservedKeyword(string, vector<string>);
-bool isArrayUsedAsNotArray(string);
-bool isNotArrayUsedAsArray(string);
-bool usedContinueOutsideOfLoop(vector <vector <string> >);
-
 %}
-
 %union{
 int val;
 string* op_val;
 }
 %start	program
-
 %token	FUNCTION BEGINPARAMS ENDPARAMS BEGINLOCALS ENDLOCALS BEGINBODY ENDBODY INTEGER ARRAY OF IF THEN ENDIF ELSE WHILE DO FOREACH IN BEGINLOOP ENDLOOP CONTINUE READ WRITE TRUE FALSE SEMICOLON COLON COMMA LPAREN RPAREN LSQUARE RSQUARE ASSIGN RETURN
 %token <val> NUMBER
 %token <op_val> IDENTIFIER
@@ -66,270 +46,289 @@ string* op_val;
 %right NOT
 %left AND OR
 %right ASSIGN
-
 %%
-
-
 program: 	functions
 			{
-				out_stream.close();
-				if(!mainExists(function_vector)) {
-					error = true;
-	            	out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();
-            	}
+				os.close();
+				bool mainBool = false;
+				for(unsigned int i = 0; i < fVector.size(); ++i){
+					if(fVector.at(i) == "main"){
+						mainBool = true;
+					}
+				}
+				if (!mainBool) {
+					cerr << "Semantic error: did not define a main function" << endl;
+					semanticError = true;
+					os.open("test152.mil", ofstream::trunc);
+					os.close();
+				}
 			}
-	 	;	
-
+	 	;
 functions:	functions function
 		|
 		;
-
-function_help: FUNCTION IDENTIFIER
+functionH: FUNCTION IDENTIFIER
 		{
-			// out_stream.open("test1.mil", fstream::app);
-			if(!out_stream.is_open()) {
-				if(!error)
-				{
-					out_stream.open("test1.mil");
-				}
-			}
-			
-			function_vector.push_back(*($2));
+			fVector.push_back(*($2));
 			cout << "func " << *($2) << endl;
-			out_stream << "func " << *($2) << endl;
 		}
 		
-beginparam: BEGINPARAMS
+beginParams: BEGINPARAMS
 			{ param_open = true;}
 			;
-
-endparam:	ENDPARAMS
+endParams:	ENDPARAMS
 			{ param_open = false;}
 			;
-
-function:	function_help SEMICOLON beginparam dec endparam BEGINLOCALS dec ENDLOCALS BEGINBODY state2help1 ENDBODY
+function:	functionH SEMICOLON beginParams dec endParams BEGINLOCALS dec ENDLOCALS BEGINBODY statementHelper ENDBODY
 			{
-				// 	int num_param = 0;
-				// 	for(int i=0; i < identifier_vector.size(); i++)
-				// 	{
-				// 		// identifier_type_vector.at(i) = INTEGER if int or N from [N] if array
-				// 		if(identifier_type_vector.at(i) == "INTEGER"){
-				// 			cout<<". " << identifier_vector.at(i) << endl;
-				// 			out_stream<<". " << identifier_vector.at(i) << endl;
-				// 		}
-				// 		else{	// would be an array
-				// 			cout <<".[] "<< identifier_vector.at(i)<< ", " << identifier_type_vector.at(i) <<endl;
-				// 			out_stream <<".[] "<< identifier_vector.at(i)<< ", " << identifier_type_vector.at(i) <<endl;
-				// 		}
-				// 	}
-				// 	identifier_vector.clear();
-				// 	identifier_type_vector.clear();
-				// 	while(!param_vector.empty())
-				// 	{
-				// 		string paramVecFront = param_vector.front();
-				// 		cout << "= " << paramVecFront<< ", $" << num_param << endl;
-				// 		out_stream<< "= " << paramVecFront<< ", $" << num_param << endl;
-				// 		param_vector.erase(param_vector.begin());
-				// 		num_param++;
-				// 	} 
-				// for(int i=0;i<statement_vector.size();i++)
-				// {
-    //             	cout<<statement_vector.at(i)<<endl;
-				// }
+				int num_param = 0;
+				int idVector_size = idVector.size();
+				if (idVector_size != 0) {
+					for(int i = 0; i < idVector_size; ++i) {
+						if (idtypeVector.at(i) == "INTEGER") {
+							cout<<". " << idVector.at(i) << endl;
+							os << ". " << idVector.at(i) << endl;
+						}
+						else {
+							cout <<".[] "<< idVector.at(i)<< ", " << idtypeVector.at(i) <<endl;
+							os << ".[] " << idVector.at(i) << ", " << idtypeVector.at(i) << endl;
+						}
+					}
+				}
+				idVector.clear();
+				idtypeVector.clear();
+				while (!pVector.empty()) {
+					string paramVecFront = pVector.front();
+					cout << "= " << paramVecFront<< ", $" << num_param << endl;
+					os << "= " << paramVecFront << ", $" << num_param << endl;
+					pVector.erase(pVector.begin());
+					num_param += 1;
+				} 
+				int statementVector_size = statementVector.size();
+				if (statementVector_size != 0) {
+					for (int i=0; i<statementVector_size; ++i) {
+	                	cout<<statementVector.at(i)<<endl;
+	                	os << statementVector.at(i) << endl;
+					}
+				}
 	            cout << "endfunc" << endl;
-	            out_stream << "endfunc" << endl;
-				identifier_vector.clear();
-            	identifier_type_vector.clear();	            
-	            statement_vector.clear();
-	            param_vector.clear();
-				if(error) {
-            	out_stream.open("test1.mil", ofstream::trunc);
-            	out_stream.close();
-            	}
+	            os << "endfunc" << endl;
+	            
+	        	idVector.clear();
+	            idtypeVector.clear();
+	            statementVector.clear();
+	            pVector.clear();
+	            if (semanticError) {
+	            	cout << "semanticError!" << endl;
+	            	os.open("test152.mil", ofstream::trunc);
+					os.close();
+	            }
 			}
 		;  
-
 dec:		declaration SEMICOLON dec
 		|
 		;
-
-declaration:	dec1 COLON dec2 
+declaration:	decHelper1 COLON decHelper2 
 				{
-					int num_param = 0;
-					for(int i=0; i < identifier_vector.size(); i++)
-					{
-						// identifier_type_vector.at(i) = INTEGER if int or N from [N] if array
-						if(identifier_type_vector.at(i) == "INTEGER"){
-							cout<<". " << identifier_vector.at(i) << endl;
-							out_stream<<". " << identifier_vector.at(i) << endl;
-						}
-						else{	// would be an array
-							cout <<".[] "<< identifier_vector.at(i)<< ", " << identifier_type_vector.at(i) <<endl;
-							out_stream <<".[] "<< identifier_vector.at(i)<< ", " << identifier_type_vector.at(i) <<endl;
-						}
-					}
-					while(!param_vector.empty())
-					{
-						string paramVecFront = param_vector.front();
-						cout << "= " << paramVecFront<< ", $" << num_param << endl;
-						out_stream<< "= " << paramVecFront<< ", $" << num_param << endl;
-						param_vector.erase(param_vector.begin());
-						num_param++;
-					}					
 				}
 		;
-
-dec1: 	IDENTIFIER COMMA dec1 
+decHelper1: 	IDENTIFIER COMMA decHelper1 
 			{
 				string temp = "_"+ *($1);
-				if(wasDeclared(temp))
-				{
-					error = true;
-	            	out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();					
+				bool tempBool = false;
+				extern int row;
+				for(unsigned int i = 0; i < idVector.size(); ++i) {
+					if(idVector.at(i) == temp) {
+						cerr << "Semantic Error: symbol \"" << temp << "\" has already been declared on line" << row  << endl;
+						tempBool = true;
+						break;
+					}
+				} 
+				if (tempBool) {
+					semanticError = true;
+					os.open("test152.mil", ofstream::trunc);
+					os.close();
 				}
-				// ~~~~~~~~~ CHECK DIS ~~~~~~~~~~ //
-				if(usingReservedKeyword(*($1), tokens)){
-					error = true;
-					out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();	
+				extern int row;
+				bool reservedErr = false;
+				for(unsigned int i = 0; i < reservedKey.size(); ++i){
+					if(*($1) == reservedKey.at(i)){
+						cerr << "Semantic error: used reserved word for variable on line" << row << endl;
+						reservedErr = true;
+					}
+				}
+				if (reservedErr) {
+					semanticError = true;
+					os.open("test152.mil", ofstream::trunc);
+					os.close();
 				}
 				string int_type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(int_type);
+				if (temp.size() != 0) {
+					idVector.push_back(temp);
+					idtypeVector.push_back(int_type);
+				}
 			}
 		| IDENTIFIER 
 			{
 				string temp = "_" + *($1);
-				if(wasDeclared(temp))
-				{
-					error = true;
-	            	out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();						
+				bool tempBool = false;
+				extern int row;
+				for(unsigned int i = 0; i < idVector.size(); ++i) {
+					if(idVector.at(i) == temp) {
+						cerr << "Semantic Error: symbol \"" << temp << "\" has already been declared on line" << row  << endl;
+						tempBool = true;
+						break;
+					}
+				} 
+				if (tempBool) {
+					semanticError = true;
+					os.open("test152.mil", ofstream::trunc);
+					os.close();
 				}
-				if(usingReservedKeyword(*($1), tokens)){
-					error = true;
-					out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();	
+				bool reservedErr = false;
+				for(unsigned int i = 0; i < reservedKey.size(); ++i){
+					if(*($1) == reservedKey.at(i)){
+						cerr << "Semantic error: using reserved keyword for variable on line" << row << endl;
+						reservedErr = true;
+					}
 				}
-				identifier_vector.push_back(temp);
-				if(param_open){
-					param_vector.push_back(temp);
+				if (reservedErr) {
+					semanticError = true;
+					os.open("test152.mil", ofstream::trunc);
+					os.close();
+				}
+				if (temp.size() != 0) {
+					idVector.push_back(temp);
+					if(param_open){
+						pVector.push_back(temp);
+					}
 				}
 			}
 		;
-
-dec2:	ARRAY LSQUARE NUMBER RSQUARE OF INTEGER 
+decHelper2:	ARRAY LSQUARE NUMBER RSQUARE OF INTEGER 
 			{
 				stringstream num;
 				num << $3;
-				int temps = ($3);
-				if(arrSizeZero(temps)){
-					error = true;
+				int i = ($3);
+				bool tempArr = false;
+				if(i <= 0){
+					cerr << "Semantic error: declared array of size less than or equal to 0" << endl;
+					tempArr = true;
 				}
-				string tempSpace = num.str();
-				identifier_type_vector.push_back(num.str());
+				if (tempArr) {
+					semanticError = true;
+				}
+				idtypeVector.push_back(num.str());
 			}
 		| INTEGER
 			{
 				string int_type = "INTEGER";
-				identifier_type_vector.push_back(int_type);
+				if (int_type.size() != 0) {
+					idtypeVector.push_back(int_type);
+				}
 			}
 		;
-
-statement:	statement1
-		| statement2
-		| statement3
-		| statement4
-		| statement5
-		| statement6
-		| statement7
-		| statement8
-		| statement9
+statement:	varStatement {}
+		| ifStatement {}
+		| whileStatement {}
+		| doStatement {}
+		| foreachStatement {}
+		| readStatement {}
+		| writeStatement {}
+		| continueStatement {}
+		| returnStatement {}
 		;
-
-statement1:	IDENTIFIER ASSIGN expression 
+varStatement:	IDENTIFIER ASSIGN expression 
 			{
 				string temp = "_" + *($1);
-				string identifier_statement = "= " + temp + ", " + operands.at(operands.size() - 1);
-				if(isArrayUsedAsNotArray(temp))
-				{
-					error = true;
-	            	out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();					
+				if (undeclaredVariable(temp)) {
+					semanticError = true;
 				}
-				if(unDeclaredVariable(temp))
-				{
-					error = true;
-	            	out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();					
+				string identifier_statement = "= " + temp + ", " + opVector.at(opVector.size() - 1);
+				extern int row;
+				for (int i = 0; i < idtypeVector.size(); ++i) {
+					if (idVector.at(i) == temp) {
+						if (idtypeVector.at(i) != "INTEGER") {
+							semanticError = true;
+							cerr << "Error line: " << row << ", used array without specifying index" << endl;
+						}
+					}
 				}
-				statement_vector.push_back(identifier_statement);
-				cout << identifier_statement << endl;
-				out_stream << identifier_statement << endl;
-				operands.pop_back();
+				if (identifier_statement.size() != 0) {
+					statementVector.push_back(identifier_statement);
+				}
+				if (opVector.size() != 0) {
+					opVector.pop_back();
+				}
 			}
 		|	IDENTIFIER LSQUARE expression RSQUARE ASSIGN expression 
 			{
 				string array_name = "_" + *($1);
-				string array_source = operands.at(operands.size() - 1);
-				operands.pop_back();
-				string array_index = operands.at(operands.size() - 1);
-				operands.pop_back();
-				if(isNotArrayUsedAsArray(array_name))
-				{
-					error = true;
-					out_stream.open("test1.mil", ofstream::trunc);
-					out_stream.close();
+				string array_source = opVector.at(opVector.size() - 1);
+				
+				if (opVector.size() != 0) {
+					opVector.pop_back();
+				}
+				string array_index = opVector.at(opVector.size() - 1);
+				if (opVector.size() != 0) {
+					opVector.pop_back();
+				}
+				extern int row;
+				for (int i = 0; i < idtypeVector.size(); ++i) {
+					if (idVector.at(i) == array_name) {
+						if (idtypeVector.at(i) == "INTEGER") {
+							semanticError = true;						
+							cerr << "Error line: " << row << ", specified index with used variable"<< endl;
+						}
+					}
 				}
 				string array_statement = "[]= " + array_name + ", " + array_index + ", " + array_source;
-				statement_vector.push_back(array_statement);
-				cout << array_statement << endl;
-				out_stream << array_statement << endl;
+				if (array_statement.size() != 0) {
+					statementVector.push_back(array_statement);
+				}
 			}
 		;
-
-statement2:	if_statement state2help1 ENDIF 
+ifStatement:	ifHelper statementHelper ENDIF 
 			{
-				string if_end = ": " + if_label_vector.back().at(1);
-				statement_vector.push_back(if_end);
-				cout << if_end << endl;
-				out_stream << if_end << endl;
-				if_label_vector.pop_back(); // End of if statements
+				string if_end = ": " + ifvectorVector.back().at(1);
+				if (if_end.size() != 0) {
+					statementVector.push_back(if_end);
+				}
+				if (ifvectorVector.size() != 0) {
+					ifvectorVector.pop_back();
+				}
 			}
-		|	else_if_statement state2help1 ENDIF
+		|	elseifHelper statementHelper ENDIF
 			{
-				string if_end = ": " + if_label_vector.back().at(2);
-				statement_vector.push_back(if_end);
-				cout << if_end << endl;
-				out_stream << if_end << endl;
-				if_label_vector.pop_back();
+				string if_end = ": " + ifvectorVector.back().at(2);
+				if (if_end.size() != 0) {
+					statementVector.push_back(if_end);
+				}
+				if (ifvectorVector.size() != 0) {
+					ifvectorVector.pop_back();
+				}
 			}
 		;
-
-state2help1:	statement SEMICOLON state2help1
-		| statement SEMICOLON
+statementHelper:	statement SEMICOLON statementHelper {}
+		| statement SEMICOLON {}
 		;
 		
-else_if_statement:	if_statement state2help1 ELSE
+elseifHelper:	ifHelper statementHelper ELSE
 					{
-						string end_if_statement = ":= " + if_label_vector.back().at(2);
-						statement_vector.push_back(end_if_statement);
-						cout << end_if_statement << endl;
-						out_stream << end_if_statement << endl;
+						string end_if_statement = ":= " + ifvectorVector.back().at(2);
+						if (end_if_statement.size() != 0) {
+							statementVector.push_back(end_if_statement);
+						}
 						
-						string else_if_declare_statement = ": " + if_label_vector.back().at(1);
-						statement_vector.push_back(else_if_declare_statement);
-						cout << else_if_declare_statement << endl;
-						out_stream << else_if_declare_statement << endl;
+						string else_if_declare_statement = ": " + ifvectorVector.back().at(1);
+						if (else_if_declare_statement.size() != 0) {
+							statementVector.push_back(else_if_declare_statement);
+						}
 					}
 		;
-
-if_statement:	IF bool_exp THEN
+ifHelper:	IF boolExpr THEN
 				{
-					string temp = genLblVar();
-					temp = temp;
+					string temp = generate2();
 					string if_true = "if_condition_true_" + temp;
 		            string if_false = "if_condition_false_" + temp;
 		            string end_if = "end_if_"  + temp;
@@ -338,1053 +337,684 @@ if_statement:	IF bool_exp THEN
 		            label_statements.push_back(if_true);
 		            label_statements.push_back(if_false);
 		            label_statements.push_back(end_if);
-		            if_label_vector.push_back(label_statements);
+		            ifvectorVector.push_back(label_statements);
 		            
-		            string if_true_statement = "?:= " + if_true + ", " + operands.at(operands.size() - 1);
-		            statement_vector.push_back(if_true_statement); // adds if_true label to statement vector
-		            cout << if_true_statement << endl;
-		            out_stream << if_true_statement << endl;
-		            operands.pop_back();
+		            string if_true_statement = "?:= " + if_true + ", " + opVector.back();
+		            statementVector.push_back(if_true_statement); // adds if_true label to statement vector
+		            if (opVector.size() != 0) {
+		            	opVector.pop_back();
+		            }
 		            
 		            string if_false_statement = ":= " + if_false;
-		            statement_vector.push_back(if_false_statement); // adds if_false label to statement vector
-		            cout << if_false_statement << endl;
-		            out_stream << if_false_statement << endl;
+		            statementVector.push_back(if_false_statement); // adds if_false label to statement vector
 		            
 		            string if_declare_statement = ": " + if_true;
-		            statement_vector.push_back(if_declare_statement);// adds if_declare statment to statement vector
-		            cout << if_declare_statement << endl;
-		            out_stream << if_declare_statement << endl;
-		            
-		            // does declare > false > true in order so it prints out this way.
+		            statementVector.push_back(if_declare_statement);// adds if_declare statment to statement vector
 				}
 		;
-
-statement3:	while_start state2help1 ENDLOOP 
+whileStatement:	whileHelper1 statementHelper ENDLOOP 
 			{
-				string while_loop_label = ":= " + loop_label_vector.back().at(0);
-				string while_loop_end = ": " + loop_label_vector.back().at(2);
-				statement_vector.push_back(while_loop_label);
-				cout << while_loop_label << endl;
-				out_stream << while_loop_label << endl;
-				statement_vector.push_back(while_loop_end);
-				cout << while_loop_end << endl;
-				out_stream << while_loop_end << endl;
-				loop_label_vector.pop_back();
+				string while_loop_end = ": " + loopvectorVector.back().at(2);
+				string while_loop_label = ":= " + loopvectorVector.back().at(0);
+				
+				if (while_loop_label.size() != 0) {
+					statementVector.push_back(while_loop_label);
+				}
+				if (while_loop_end.size() != 0) {
+					statementVector.push_back(while_loop_end);
+				}
+				if (loopvectorVector.size() != 0) {
+					loopvectorVector.pop_back();
+				}
 			}
 		;
-
-while_start: while_statement bool_exp BEGINLOOP
+whileHelper1: whileHelper2 boolExpr BEGINLOOP
 			{
-				string while_in = "?:= " + loop_label_vector.back().at(1) + ", " +  operands.at(operands.size() - 1);
-				operands.pop_back();
-				string while_end = ":= " + loop_label_vector.back().at(2);
-				string while_start = ": " + loop_label_vector.back().at(1);
-	
-				statement_vector.push_back(while_in);
-				statement_vector.push_back(while_end);
-				statement_vector.push_back(while_start);
-				cout << while_in << endl;
-				out_stream << while_in << endl;
-				cout << while_end << endl;
-				out_stream << while_end << endl;
-				cout << while_start << endl;
-				out_stream << while_start << endl;
+				string while_in = "?:= " + loopvectorVector.back().at(1) + ", " +  opVector.back();
+				string while_end = ":= " + loopvectorVector.back().at(2);
+				string whileHelper1 = ": " + loopvectorVector.back().at(1);
+				if (opVector.size() != 0) {
+					opVector.pop_back();
+				}
+				if (while_in.size() != 0) {
+					statementVector.push_back(while_in);
+				}
+				if (while_end.size() != 0) {
+					statementVector.push_back(while_end);
+				}
+				if (whileHelper1.size() != 0) {
+					statementVector.push_back(whileHelper1);
+				}
 			}	
 		;
-
-
-while_statement: WHILE
+whileHelper2: WHILE
 				{
-					string temp = genLblVar();
-		            string while_loop = "while_loop" + temp;
-		            string cond_true = "conditional_true" + temp;
+					string temp = generate2();
+					string cond_true = "conditional_true" + temp;
 		            string cond_false = "conditional_false" + temp; 
+		            string while_loop = "while_loop" + temp;
 		            
 		            vector<string> while_statements;
-		            while_statements.push_back(while_loop);
-		            while_statements.push_back(cond_true);
-		            while_statements.push_back(cond_false);
-		            
-		            
-		            loop_label_vector.push_back(while_statements);
+		            if (while_loop.size() != 0) {
+		            	while_statements.push_back(while_loop);
+		            }
+		            if (cond_true.size() != 0) {
+		            	while_statements.push_back(cond_true);
+		            }
+		            if (cond_false.size() != 0) {
+		            	while_statements.push_back(cond_false);
+		            }
+		            loopvectorVector.push_back(while_statements);
 		            string while_declare = ": " + while_loop;
-		            statement_vector.push_back(while_declare);
-		            cout << while_declare << endl;
-		            out_stream << while_declare << endl;
+		            if (while_declare.size() != 0) { 
+		            	statementVector.push_back(while_declare);
+		            }
 				}
 		;
-
-statement4: do_check WHILE bool_exp 
+doStatement: doHelper1 WHILE boolExpr 
 			{
-				string do_while_done = "?:= " + loop_label_vector.back().at(0) + ", " + operands.at(operands.size() - 1);
-				cout << do_while_done << endl;
-				out_stream << do_while_done << endl;
-				statement_vector.push_back(do_while_done);
-				operands.pop_back();
-				loop_label_vector.pop_back();
+				string do_while_done = "?:= " + loopvectorVector.back().at(0) + ", " + opVector.back();
+				statementVector.push_back(do_while_done);
+				if (opVector.size() != 0) {
+					opVector.pop_back();
+				}
+				if (loopvectorVector.size() != 0) {
+					loopvectorVector.pop_back();
+				}
 			}
 		;
 		
 		
-do_check:	do_while state2help1 ENDLOOP
+doHelper1:	doHelper2 statementHelper ENDLOOP
 			{
-				string do_while_cond_check = ": " + loop_label_vector.back().at(1); 
-				statement_vector.push_back(do_while_cond_check);
-				cout << do_while_cond_check << endl;
-				out_stream << do_while_cond_check << endl;
-				// makes the continue check declare
+				string do_while_cond_check = ": " + loopvectorVector.back().at(1); 
+				if (do_while_cond_check.size() != 0) {
+					statementVector.push_back(do_while_cond_check);
+				}
 			}
 	;
-
-
-do_while:	DO BEGINLOOP
+doHelper2:	DO BEGINLOOP
 			{
-				string temp = genLblVar();
-				string do_while = "do_while" + temp;
-				string do_while_check = "do_while_check" + temp;
-				
+				string temp = generate2();
 				vector<string> do_while_statements;
-				do_while_statements.push_back(do_while);
-				do_while_statements.push_back(do_while_check);
+				string doHelper2 = "doHelper2" + temp;
+				string do_while_check = "do_while_check" + temp;
+				if (doHelper2.size() != 0) {
+					do_while_statements.push_back(doHelper2);
+				}
+				if (do_while_check.size() != 0) {
+					do_while_statements.push_back(do_while_check);
+				}
 				
-				loop_label_vector.push_back(do_while_statements);
+				loopvectorVector.push_back(do_while_statements);
 				
-				string do_while_declare = ": " + do_while;
-				statement_vector.push_back(do_while_declare);
-				cout << do_while_declare << endl;
-				out_stream << do_while_declare << endl;
+				string do_while_declare = ": " + doHelper2;
+				if (do_while_declare.size() != 0) {
+					statementVector.push_back(do_while_declare);
+				}
 			}
 	;
-
-statement5: foreachstart state2help1 ENDLOOP
+foreachStatement: foreachHelper1 statementHelper ENDLOOP
 			{
-				string foreach_loop_label = ":= " + for_loop_label_vector.back().at(0);
-				string foreach_loop_end = ": " + for_loop_label_vector.back().at(2);
-				
-				statement_vector.push_back(foreach_loop_label);
-				cout << foreach_loop_label << endl;
-				out_stream << foreach_loop_label << endl;
-				statement_vector.push_back(foreach_loop_end);
-				cout << foreach_loop_end << endl;
-				out_stream << foreach_loop_end << endl;
+				statementVector.push_back(":= " + forvectorVector.back().at(0));
+				statementVector.push_back(": " + forvectorVector.back().at(2));
 			}
 		;
-
 // ~~~~~~~~~~~~ NOT DONE ~~~~~~~~~~~~~~~~ //
-foreachstart: foreachstatement forexpr BEGINLOOP //IDENTIFIER IN IDENTIFIER BEGINLOOP
+foreachHelper1: foreachHelper2 forExpression BEGINLOOP //IDENTIFIER IN IDENTIFIER BEGINLOOP
 			{
-				string foreach_in = "?:= " + for_loop_label_vector.back().at(1) + ", " +  operands.at(operands.size() - 1);
-				operands.pop_back();
-				string foreach_end = ":= " + for_loop_label_vector.back().at(2);
-				string foreach_start = ": " + for_loop_label_vector.back().at(1);
-	
-				statement_vector.push_back(foreach_in);
-				statement_vector.push_back(foreach_end);
-				statement_vector.push_back(foreach_start);
-				cout << foreach_in << endl;
-				out_stream << foreach_in << endl;
-				cout << foreach_end << endl;
-				out_stream << foreach_end << endl;
-				cout << foreach_start << endl;
-				out_stream << foreach_start << endl;
+				statementVector.push_back("?:= " + forvectorVector.back().at(1) + ", " +  opVector.back());
+				statementVector.push_back(":= " + forvectorVector.back().at(2));
+				statementVector.push_back(": " + forvectorVector.back().at(1));
 			}
 		;
 		
-foreachstatement: FOREACH
+foreachHelper2: FOREACH
 			{
-				string temp = genLblVar();
-				temp = temp;
-	            string foreach_loop = "foreach_loop" + temp;
-	            string cond_true = "conditional_true" + temp;
-	            string cond_false = "conditional_false" + temp; 
+				string temp = generate2();
+				
+	            string _false = "conditional_false" + temp; 
+	            string _true = "conditional_true" + temp;
+	            string _loop = "foreach_loop" + temp;
 	            
 	            vector<string> foreach_statements;
-	            foreach_statements.push_back(foreach_loop);
-	            foreach_statements.push_back(cond_true);
-	            foreach_statements.push_back(cond_false);
+	            foreach_statements.push_back(_loop);
+	            foreach_statements.push_back(_true);
+	            foreach_statements.push_back(_false);
 	            
-	            
-	            for_loop_label_vector.push_back(foreach_statements);
-	            string foreach_declare = ": " + foreach_loop;
-	            statement_vector.push_back(foreach_declare);
-	            cout << foreach_declare << endl;
-	            out_stream << foreach_declare << endl;
+	            statementVector.push_back( ": " + _loop);
+	            forvectorVector.push_back(foreach_statements);
 			}
 		;
-
-forexpr: IDENTIFIER IN IDENTIFIER
+forExpression: IDENTIFIER IN IDENTIFIER
+			{}
 		
-statement6:	READ IDENTIFIER read_variables 
+readStatement:	READ IDENTIFIER readHelper1 
 			{
 				string temp = "_" + *($2);
-				string temp_statement = ".< " + temp;
-				if(unDeclaredVariable(temp))
-				{
-					error = true;
-	            	out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();						
+				if (undeclaredVariable(temp)) {
+					semanticError = true;
 				}
-				read_stack.push(temp_statement);
-				while(read_stack.size() != 0)
+				rStack.push(".< " + temp);
+				while(rStack.size() < 0 || rStack.size() > 0)
 				{
-					statement_vector.push_back(read_stack.top());
-					cout << read_stack.top() << endl;
-					out_stream << read_stack.top() << endl;
-					read_stack.pop();
+					statementVector.push_back(rStack.top());
+					if (!rStack.empty()) rStack.pop();
 				}
 			}
-		|	READ IDENTIFIER LSQUARE expression RSQUARE read_variables
+		|	READ IDENTIFIER LSQUARE expression RSQUARE readHelper1
 			{
-				string temp = genTmpVar();
-				string temp_statement = ".< " + temp;
-				string temp_array_statement = "[]= _" + *($2) + ", " + operands.at(operands.size() - 1) + ", " + temp; 
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back("INTEGER");
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
-				read_stack.push(temp_statement);
-				read_stack.push(temp_array_statement);
-				operands.pop_back();
-				while(read_stack.size() != 0)
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
+				rStack.push(".< " + temp);
+				rStack.push("[]= _" + *($2) + ", " + opVector.at(opVector.size() - 1) + ", " + temp);
+				if (!opVector.empty()) opVector.pop_back();
+				
+				while(rStack.size() < 0 || rStack.size() > 0)
 				{
-					statement_vector.push_back(read_stack.top());
-					cout << read_stack.top() << endl;
-					out_stream << read_stack.top() << endl;
-					read_stack.pop();
+					statementVector.push_back(rStack.top());
+					if (!rStack.empty()) rStack.pop();
 				}
 			}
 		;
-
-read_variables:	COMMA IDENTIFIER read_variables
+readHelper1:	COMMA IDENTIFIER readHelper1
 			{
 				string temp = "_" + *($2);
-				string read_statement = ".< " + temp;
-				if(unDeclaredVariable(temp))
-				{
-					error = true;
-	            	out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();						
+				if (undeclaredVariable(temp)) {
+					semanticError = true;
 				}
-				read_stack.push(read_statement);
+				rStack.push(".< " + temp);
 			}
-		|	COMMA IDENTIFIER LSQUARE expression RSQUARE read_variables
+		|	COMMA IDENTIFIER LSQUARE expression RSQUARE readHelper1
 			{
-				string generated_temp = genTmpVar();
-				identifier_vector.push_back(generated_temp);
-				identifier_type_vector.push_back("INTEGER");
-				cout << ". " << generated_temp << endl;
-				out_stream << ". " << generated_temp << endl;
-				string temp_statement = ".< " + generated_temp;
-				string temp_array_statement = "[]= " + *($2) + ", " + operands.at(operands.size() - 1) + ", " + generated_temp;
-				read_stack.push(temp_statement);
-				read_stack.push(temp_array_statement);
-				operands.pop_back();
+				string generated_temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(generated_temp);
+				rStack.push(".< " + generated_temp);
+				rStack.push("[]= " + *($2) + ", " + opVector.back() + ", " + generated_temp);
+				if (!opVector.empty()) opVector.pop_back();
 			}
-		| 
+		| {}
 		;
 		
-state6help: COMMA varTerm state6help
-		|
+writeHelper1: COMMA varTerm writeHelper1
+			{}
+		|	{}
 		;
-
-statement7:	WRITE varTerm state6help  // probably use var is okay, but varterm is recommended
+writeStatement:	WRITE varTerm writeHelper1
 			{
-				while(operands.size() != 0) 
+				while(opVector.size() < 0 || opVector.size() > 0) 
 				{
-					string start = operands.at(0);
-					string write_statement = ".> " + start;
-					statement_vector.push_back(write_statement);
-					cout << write_statement << endl;
-					out_stream << write_statement << endl;
-					operands.erase(operands.begin());
+					string start = opVector.at(0);
+					statementVector.push_back(".> " + start);
+	
+					opVector.erase(opVector.begin());
 				}
-				operands.clear();
+				if (opVector.size() != 0) opVector.clear();
 			}
 		;
-
-statement8:	CONTINUE 
+continueStatement:	CONTINUE 
 			{
-				if(usedContinueOutsideOfLoop(loop_label_vector))
-				{
-					error = true;
-	            	out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();					
+				extern int row;
+				
+				if (loopvectorVector.size() == 0) {
+					semanticError = true;
+					cerr << "Semantic Error: used continue outside of loop" << row << endl;
+					os.open("test152.mil", ofstream::trunc);
+					os.close();
 				}
-				if(loop_label_vector.size() != 0) 
+				if(loopvectorVector.size() < 0 || loopvectorVector.size() > 0) 
 				{
-					if(loop_label_vector.back().at(0) == "d")
+					if(loopvectorVector.back().at(0) != "d")
 					{
-						string continue_statement = ":= " + loop_label_vector.back().at(0);
-						statement_vector.push_back(continue_statement);
-						cout << continue_statement << endl;
-						out_stream << continue_statement << endl;
+						string not_continue_statement = ":= " + loopvectorVector.back().at(1);
+						statementVector.push_back(not_continue_statement);
 					}
 					else
 					{
-						string not_continue_statement = ":= " + loop_label_vector.back().at(1);
-						statement_vector.push_back(not_continue_statement);
-						cout << not_continue_statement << endl;
-						out_stream << not_continue_statement << endl;
+						string continue_statement = ":= " + loopvectorVector.back().at(0);
+						statementVector.push_back(continue_statement);
 					}
 				}
 			}
 		;
-
-statement9:	RETURN expression 
+returnStatement:	RETURN expression 
 			{
-				string return_statement = "ret " + operands.at(operands.size() - 1);
-				statement_vector.push_back(return_statement);
-				cout << return_statement << endl;
-				out_stream << return_statement << endl;
-				operands.pop_back();
+				statementVector.push_back("ret " + opVector.back());
+				if (!opVector.empty()) opVector.pop_back();
 			}
 		;
-
-bool_exp: relationHelp
-		| bool_exp OR relationHelp
+boolExpr: relationandexprH
+		| boolExpr OR relationandexprH
 			{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				string operand1 = opVector.back();
+				string operand2 = opVector.at(opVector.size()-2);
 				
-				string push_item = "|| " + temp + ", " + operand2 + ", " + operand1;
+				statementVector.push_back("|| " + temp + ", " + operand2 + ", " + operand1);
 				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
-				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);
-			}
-
-relationHelp: relationexpr
-			| relationHelp AND relationexpr
-				{
-					string temp = genTmpVar();
-					string type = "INTEGER";
-					identifier_vector.push_back(temp);
-					identifier_type_vector.push_back(type);
-					
-					cout << ". " << temp << endl;
-					out_stream << ". " << temp << endl;
-					
-					string operand1 = operands.at(operands.size()-1);
-					string operand2 = operands.at(operands.size()-2);
-					
-					
-					string push_item = "&& " + temp + ", " + operand2 + ", " + operand1;
-					
-					statement_vector.push_back(push_item);
-					cout << push_item << endl;
-					out_stream << push_item << endl;
-					
-					operands.pop_back();
-					operands.pop_back();
-					
-					operands.push_back(temp);	
+				for (int i = 0; i < 2; i++) {
+					if (!opVector.empty()) opVector.pop_back();
 				}
-
-
-
-// bool_exp:	relation_and_expr orHelper {}
-
-// orHelper:	OR relation_and_expr orHelper 
-// 			{
-// 				string temp = genTmpVar();
-// 				string type = "INTEGER";
-// 				identifier_vector.push_back(temp);
-// 				identifier_type_vector.push_back(type);
-// 				cout << ". " << temp << endl;
-// 				out_stream << ". " << temp << endl;
 				
-// 				string operand1 = operands.at(operands.size()-1);
-// 				string operand2 = operands.at(operands.size()-2);
-				
-// 				string push_item = "|| " + temp + ", " + operand2 + ", " + operand1;
-				
-// 				statement_vector.push_back(push_item);
-// 				cout << push_item << endl;
-// 				out_stream << push_item << endl;
-				
-// 				operands.pop_back();
-// 				operands.pop_back();
-				
-// 				operands.push_back(temp);
-// 			}
-// 		| 
-// 			{}
-// 		;
-
-// relation_and_expr: relationexpr andHelper {};
-
-// andHelper: 	AND relationexpr andHelper
-// 			{
-// 				string temp = genTmpVar();
-// 				string type = "INTEGER";
-// 				identifier_vector.push_back(temp);
-// 				identifier_type_vector.push_back(type);
-				
-// 				cout << ". " << temp << endl;
-// 				out_stream << ". " << temp << endl;
-				
-// 				string operand1 = operands.at(operands.size()-1);
-// 				string operand2 = operands.at(operands.size()-2);
-				
-				
-// 				string push_item = "&& " + temp + ", " + operand2 + ", " + operand1;
-				
-// 				statement_vector.push_back(push_item);
-// 				cout << push_item << endl;
-// 				out_stream << push_item << endl;
-				
-// 				operands.pop_back();
-// 				operands.pop_back();
-				
-// 				operands.push_back(temp);	
-// 			}
-// 		| 
-// 			{};
-
-
-relationexpr:	relationExprHelper
+				opVector.push_back(temp);
+			}
+relationandexprH: relationandExpr
+			| relationandexprH AND relationandExpr
+				{
+					string temp = generate1();
+					idtypeVector.push_back("INTEGER");
+					idVector.push_back(temp);
+					
+					string operand1 = opVector.back();
+					string operand2 = opVector.at(opVector.size()-2);
+					
+					statementVector.push_back("&& " + temp + ", " + operand2 + ", " + operand1);
+					
+					for (int i = 0; i < 2; i++) {
+						opVector.pop_back();
+					}
+					
+					opVector.push_back(temp);	
+				}
+relationandExpr:	relationExprHelper {}
 			| NOT relationExprHelper 
 			{
-				string temp = genTmpVar();
-				temp = temp;
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back("INTEGER");
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
-				string operand1 = operands.back();
-				operands.pop_back();
-				string not_statement = "! " + temp + ", " + operand1;
-				statement_vector.push_back(not_statement);
-				cout << not_statement << endl;
-				out_stream << not_statement << endl;
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
+				string operand1 = opVector.at(opVector.size()-1);
+				statementVector.push_back("! " + temp + ", " + operand1);
 				
-				operands.push_back(temp);
+				if (!opVector.empty()) opVector.pop_back();
+				
+				opVector.push_back(temp);
 			}
 			;
-
-relationExprHelper:	comp // normally [expression comp expression]
+relationExprHelper:	comp {}
 			| TRUE 
 				{
-					string temp = genTmpVar();
-					string type = "INTEGER";
-					identifier_vector.push_back(temp);
-					identifier_type_vector.push_back(type);
-					cout << ". " << temp << endl;
-					out_stream << ". " << temp << endl;
-					string push_item = "= " + temp + ", 1";
-					
-					statement_vector.push_back(push_item);
-					cout << push_item << endl;
-					out_stream << push_item << endl;
-					operands.push_back(temp);
+					string temp = generate1();
+					idtypeVector.push_back("INTEGER");
+					idVector.push_back(temp);
+					statementVector.push_back("= " + temp + ", 1");
+					opVector.push_back(temp);
 				}
 			| FALSE 
 				{
-					string temp = genTmpVar();
-					string type = "INTEGER";
-					identifier_vector.push_back(temp);
-					identifier_type_vector.push_back(type);
-					cout << ". " << temp << endl;
-					out_stream << ". " << temp << endl;
+					string temp = generate1();
+					idtypeVector.push_back("INTEGER");
+					idVector.push_back(temp);
 					
-					string push_item = "= " + temp + ", 0";
+					statementVector.push_back("= " + temp + ", 0");
 					
-					statement_vector.push_back(push_item);
-					cout << push_item << endl;
-					out_stream << push_item << endl;
-					
-					operands.push_back(temp);
+					opVector.push_back(temp);
 				}
-			| LPAREN bool_exp RPAREN 
+			| LPAREN boolExpr RPAREN 
+				{}
 			;
-
 comp:	expression EQ expression 
 		{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				statementVector.push_back("== " + temp + ", " + operand2 + ", " + operand1);
 				
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				string push_item = "== " + temp + ", " + operand2 + ", " + operand1;
-				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
-				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);			
+				opVector.push_back(temp);			
 		}
 		| expression NEQ expression 
 		{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
 				
-				string push_item = "!= " + temp + ", " + operand2 + ", " + operand1;
+				statementVector.push_back("!= " + temp + ", " + operand2 + ", " + operand1);
 				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);			
+				opVector.push_back(temp);			
 		}
 		| expression LT expression 
 		{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
+				statementVector.push_back("< " + temp + ", " + operand2 + ", " + operand1);
 				
-				string push_item = "< " + temp + ", " + operand2 + ", " + operand1;
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
-				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);			
+				opVector.push_back(temp);			
 		}
 		| expression GT expression 
 		{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
+				idVector.push_back(temp);
+				idtypeVector.push_back("INTEGER");
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
+				statementVector.push_back( "> "  + temp + ", " + operand2 + ", " + operand1);
 				
-				string push_item = "> "  + temp + ", " + operand2 + ", " + operand1;
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
-				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);			
+				opVector.push_back(temp);			
 		}
 		| expression LTE expression 
 		{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
-				string push_item = "<= " + temp + ", " + operand2 + ", " + operand1;
+				statementVector.push_back("<= " + temp + ", " + operand2 + ", " + operand1);
 				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);			
+				opVector.push_back(temp);			
 		}
 		| expression GTE expression 
 		{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
+				idVector.push_back(temp);
+				idtypeVector.push_back("INTEGER");
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
 				
-				string push_item = ">= " + temp + ", " + operand2 + ", " + operand1;
+				statementVector.push_back(">= " + temp + ", " + operand2 + ", " + operand1);
 				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);			
+				opVector.push_back(temp);			
 		}
 		;
-
-
-expression:	multiplicative_expr multExprHelper
+expression:	multiplicative_expr multExprH {}
 		;
-
-multExprHelper:	ADD multiplicative_expr multExprHelper 
+multExprH:	ADD multiplicative_expr multExprH 
 			{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
+				statementVector.push_back("+ " + temp + ", " + operand2 + ", " + operand1);
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				string push_item = "+ " + temp + ", " + operand2 + ", " + operand1;
-				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
-				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);
+				opVector.push_back(temp);
 			}
-		| SUB multiplicative_expr multExprHelper 
+		| SUB multiplicative_expr multExprH 
 			{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
+				statementVector.push_back("- " + temp + ", " + operand2 + ", " + operand1);
 				
-				string push_item = "- " + temp + ", " + operand2 + ", " + operand1;
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
-				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);
+				opVector.push_back(temp);
 			}
 		| 
+			{}
 		;
-
-multiplicative_expr:	term termHelper 
+multiplicative_expr:	term termH 
+				{}
 			;
-
-termHelper:	MULT term termHelper
+termH:	MULT term termH
 			{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
+				idVector.push_back(temp);
+				idtypeVector.push_back("INTEGER");
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
+				statementVector.push_back("* " + temp + ", " + operand2 + ", " + operand1);
 				
-				string push_item = "* " + temp + ", " + operand2 + ", " + operand1;
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
-				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);
+				opVector.push_back(temp);
 			}
-		| DIV term termHelper
+		| DIV term termH
 			{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
-				string push_item = "/ " + temp + ", " + operand2 + ", " + operand1;
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
+	
+				statementVector.push_back("/ " + temp + ", " + operand2 + ", " + operand1);
 				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
 				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);
+				opVector.push_back(temp);
 			}
-		| MOD term termHelper
+		| MOD term termH
 			{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
-				string operand1 = operands.at(operands.size()-1);
-				string operand2 = operands.at(operands.size()-2);
+				string operand1 = opVector.at(opVector.size()-1);
+				string operand2 = opVector.at(opVector.size()-2);
 				
+				statementVector.push_back("% " + temp + ", " + operand2 + ", " + operand1);
 				
-				string push_item = "% " + temp + ", " + operand2 + ", " + operand1;
-				
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
-				
-				operands.pop_back();
-				operands.pop_back();
-				
-				operands.push_back(temp);
+				for (int i = 0; i < 2; i++) {
+					opVector.pop_back();
+				}
+				opVector.push_back(temp);
 			}
 		| 
+			{}
 		;
-
 term:	identifierTerm 
-			{
-				// ?????????????? think its done
-			}
+			{}
 		| varTerm 
-			{
-				// empty
-			}
+			{}
 		| SUB varTerm
 			{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
-				string operand1 = operands.at(operands.size()-1);
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				string operand1 = opVector.at(opVector.size()-1);
+				idVector.push_back(temp);
 				
 				string push_item = "- " + temp + ", 0, " + operand1; 
-				cout << push_item << endl;
-				out_stream << push_item << endl;
-				statement_vector.push_back(push_item);
-				operands.pop_back();
-				operands.push_back(temp);
+				statementVector.push_back(push_item);
+				
+				if (!opVector.empty()) opVector.pop_back();
+				opVector.push_back(temp);
 			}
 		;
-
-identifierTerm: IDENTIFIER LPAREN identifierHelp RPAREN 
+identifierTerm: IDENTIFIER LPAREN identifierH RPAREN 
 				{
-					string temp = genTmpVar(); // makes temp variable
-					identifier_vector.push_back(temp); // this line and line below adds to table to output later
-					identifier_type_vector.push_back("INTEGER");
-					cout << ". " << temp << endl;
-					out_stream << ". " << temp << endl;
-					
-					while(!param_stack.empty()) 
+					while(pStack.empty() == false) 
 					{
-						string temp = "param " + param_stack.top();
-						statement_vector.push_back(temp);
-						cout << temp << endl;
-						param_stack.pop();
+						statementVector.push_back("param " + pStack.top());
+						pStack.pop();
 					}
-					if(functionNotDeclared(*($1))) {
-						error = true;
-		            	out_stream.open("test1.mil", ofstream::trunc);
-		            	out_stream.close();						
+					extern int row;
+					bool functionErr = true;
+					string var 
+					for(unsigned int i  = 0; i < fVector.size(); ++i)
+					{
+						if(fVector.at(i) == *($1))
+						{
+							cout << fVector.at(i) << "O.O" << endl;
+							functionErr = false;
+						}
 					}
-					string identifier_statement = "call " + *($1) + ", " + temp;
-					statement_vector.push_back(identifier_statement); // adds for statement
-					cout << identifier_statement << endl;
-					out_stream << identifier_statement << endl;
-					operands.push_back(temp); // pushes the temp variable number into operands for going into param stack
+					if (functionErr) {
+						cerr << "Line Error: " << row << ", function \"" << *($1) << "\" was not declared"<< endl;
+					}
+					string temp = generate1();
+					idVector.push_back(temp);
+					idtypeVector.push_back("INTEGER");
+					
+					statementVector.push_back("call " + *($1) + ", " + temp);
+					opVector.push_back(temp);
 				}
 		;
-
-identifierHelp: expression COMMA identifierHelp 
+identifierH: expression COMMA identifierH 
 			{
-				param_stack.push(operands.at(operands.size() - 1));
-				operands.pop_back();
+				pStack.push(opVector.at(opVector.size() - 1));
+				if (!opVector.empty()) opVector.pop_back();
 			}
-		| expression 
+		|	expression 
 			{
-				param_stack.push(operands.at(operands.size() - 1));
-				operands.pop_back();
+				pStack.push(opVector.at(opVector.size() - 1));
+				if (!opVector.empty()) opVector.pop_back();
 			}
-
 varTerm: 	var 
 			{
-				string temp = genTmpVar();
-				string type = "INTEGER";
+				string temp = generate1();
+				idtypeVector.push_back("INTEGER");
+				idVector.push_back(temp);
 				
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
-				string operand1 = operands.at(operands.size()-1);
-				operands.pop_back();
+				string operand1 = opVector.at(opVector.size()-1);
+				if (!opVector.empty()) opVector.pop_back();
 				
-				if(operand1.at(0) == '['){	//we know its an array
-					string push_item = "=[] " + temp + ", " + operand1.substr(2);
-					// CHECK THIS 
-					statement_vector.push_back(push_item);
-					cout << push_item << endl;
-					out_stream << push_item << endl;
-				}
-				else {	// has to be an integer
+				if(operand1.at(0) != '['){
 					string push_item = "= " + temp + ", " + operand1;
-					statement_vector.push_back(push_item);
-					cout << push_item << endl;
-					out_stream << push_item << endl;
+					statementVector.push_back(push_item);
 				}
-				operands.push_back(temp);
+				else {
+					string push_item = "=[] " + temp + ", " + operand1.substr(2);
+					statementVector.push_back(push_item);
+				}
+				opVector.push_back(temp);
 			}
 		| NUMBER
 			{
-				string temp = genTmpVar();
-				string type = "INTEGER";
-				identifier_vector.push_back(temp);
-				identifier_type_vector.push_back(type);
-				cout << ". " << temp << endl;
-				out_stream << ". " << temp << endl;
-				operands.push_back(temp);
+				string temp = generate1();
+				idVector.push_back(temp);
+				idtypeVector.push_back("INTEGER");
+				opVector.push_back(temp);
 				
-				stringstream num;
+				ostringstream num;
+				num.clear();
 				num << $1;
-				string push_item = "= " + temp + ", " + num.str();
-				statement_vector.push_back(push_item);
-				cout << push_item << endl;
-				out_stream << push_item << endl;
+				statementVector.push_back("= " + temp + ", " + num.str());
 			}
 		| LPAREN expression RPAREN
 			{
-				while(param_stack.size() != 0)
+				while(pStack.size() < 0 || pStack.size() > 0)
                 {
-                	string temp = param_stack.top();
-                	param_stack.pop();
-                	string push_item = "param " + temp;
-                    statement_vector.push_back(push_item);
-                    cout << push_item << endl;
-                    out_stream << push_item << endl;
+                    statementVector.push_back("param " + pStack.top());
                 }
 			}
 		;
-
 var:		IDENTIFIER 
 			{
-				string temp = "_" + *($1);
-				if(unDeclaredVariable(temp))
-				{
-					error = true;
-	            	out_stream.open("test1.mil", ofstream::trunc);
-	            	out_stream.close();						
+				if (undeclaredVariable("_" + *($1))) {
+					semanticError = true;
 				}
-				operands.push_back(temp);
+				opVector.push_back("_" + *($1));
 			}
 		|	IDENTIFIER LSQUARE expression RSQUARE 
 			{
-				string operandLatest = operands.at(operands.size() - 1);
+				string operandLatest = opVector.at(-1 + opVector.size());
+				opVector.pop_back();
 				string temp = "_" + *($1);
-				operands.pop_back();
-				string operandStatement = "[]" + temp + "," + operandLatest;
-				operands.push_back(operandStatement);
+				string opStatement = "[]" + temp + "," + operandLatest;
+				opVector.push_back(opStatement);
 			}
 		;  
 %%
-
 int yyerror(string s)
 {
   extern int row, column;
   extern char *yytext;		
   
-  cerr << "Error at line "<<row<<", column "<<column<<"  Unexpected Symbol: \""<<yytext<<"\""<<endl;
-  exit(1);
+  cerr << "Error at line: "<<row<<", column "<<column<<", Unexpected Symbol: \""<<yytext<<"\""<<endl;
+  exit(0);
 }
 int yyerror(char *s)
 {
   return yyerror(string(s));
 }
-
 // define functions here
-string genTmpVar(){
-	ss.str("");
-	ss.clear();
-	ss << tmpcount;
-	string temp = "_tmp_"+ ss.str();
+string generate1(){
+	//DONT TOUCH JACKIE
+	ostringstream sstream;
+	string empty = "";
+	sstream.str(empty);
+	sstream << tmpcount;
+	string tempvar = "_tempvar_"+ sstream.str();
 	++tmpcount;
-	return temp;
+	return tempvar;
 }
-
-string genLblVar(){
-	
-	ss.str("");
-	ss.clear();
-	ss << lblcount;
-	string temp = "_lbl_"+ ss.str();
+string generate2(){
+	//DONT TOUCH JACKIE
+	ostringstream sstream;
+	string empty = "";
+	sstream.str(empty);
+	sstream << lblcount;
+	string labelvar = "_labelvar_"+ sstream.str();
 	++lblcount;
-	return temp;
+	return labelvar;
 }
-
-bool unDeclaredVariable(string var)
-{
-	extern int row;
-	bool undeclared = true;
-	for(unsigned int i = 0; i < identifier_vector.size(); ++i)
-	{
-		if(identifier_vector.at(i) == var)
-		{
-			undeclared = false;
-		}
-	}
-	if(undeclared)
-	{
-		cerr << "Semantic error: undeclared variable \"" << var << "\" was used on line " << row << endl;
-		return true;
-	}
-	return false;
-}
-
 bool wasDeclared(string var)
 {
+	return true;
+}
+bool undeclaredVariable(string s) {
 	extern int row;
-	for(unsigned int i = 0; i < identifier_vector.size(); ++i) {
-		if(identifier_vector.at(i) == var) {
-			cerr << "Semantic error: symbol \"" << var << "\" has already been declared on line" << row  << endl;
-			return true;
-		}
-	} 
-	return false;
-}
-
-bool mainExists(vector<string> v){
-	for(unsigned int i = 0; i < function_vector.size(); ++i){
-		if(function_vector.at(i) == "main"){
-			return true;
-		}
-	}
-	cerr << "Semantic error: did not define main function" << endl;
-	return false;
-}
-
-bool arrSizeZero(int i){
-	if(i <= 0){
-		cerr << "Semantic error: declared array of size <= 0" << endl;
-		return true;
-	}
-	return false;
-}
-
-bool functionNotDeclared(string var)
-{
-	extern int row;
-	for(unsigned int i  = 0; i < function_vector.size(); ++i)
-	{
-		if(function_vector.at(i) == var)
-		{
+	for(unsigned int i = 0; i < idVector.size(); i++) {
+		if (idVector.at(i) == s) {
 			return false;
 		}
 	}
-	cerr << "Semantic error: function \"" << var << "\" was not declared on line " << row << endl;
+	cerr << "Error Line: " << row << ", used variable: " << s << " was not previously declared" << endl;
 	return true;
-}
-
-bool usingReservedKeyword(string s, vector<string> v){
-	extern int row;
-	for(unsigned int i = 0; i < v.size(); ++i){
-		if(s == v.at(i)){
-			cerr << "Semantic error: using reserved keyword for variable on line" << row << endl;
-			return true;
-		}
-	}
-	return false;
-}
-
-bool isArrayUsedAsNotArray(string var)
-{
-	extern int row;
-	for(unsigned int i = 0; i < identifier_type_vector.size(); ++i)
-	{
-		if(identifier_vector.at(i) == var)
-		{
-			if(identifier_type_vector.at(i) != "INTEGER")
-			{
-				cerr << "Semantic error: using an array without specifiying index on line " << row << endl;
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-bool isNotArrayUsedAsArray(string var)
-{
-	extern int row;
-	for(unsigned int i = 0; i < identifier_type_vector.size(); ++i)
-	{
-		if(identifier_vector.at(i) == var)
-		{
-			if(identifier_type_vector.at(i) == "INTEGER")
-			{
-				cerr << "Semantic error: specifying an index on an integer on line " << row << endl;
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-bool usedContinueOutsideOfLoop(vector<vector <string> > label_loop)
-{
-	extern int row;
-	if(label_loop.size() == 0)
-	{
-		cerr << "Semantic error: used continue outside of loop on line " << row << endl;
-		return true;
-	}
-	return false;
 }
