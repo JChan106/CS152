@@ -523,7 +523,7 @@ static const yytype_uint16 yyrline[] =
      545,   557,   582,   588,   589,   606,   607,   624,   625,   638,
      639,   647,   657,   660,   677,   695,   712,   729,   747,   766,
      768,   784,   802,   804,   807,   824,   842,   859,   861,   863,
-     865,   879,   908,   913,   918,   937,   949,   957,   964
+     865,   879,   907,   912,   917,   936,   948,   956,   963
 };
 #endif
 
@@ -2519,7 +2519,6 @@ yyreduce:
 					{
 						if(fVector.at(i) == *((yyvsp[-3].op_val)))
 						{
-							cout << fVector.at(i) << "O.O" << endl;
 							functionErr = false;
 						}
 					}
@@ -2533,29 +2532,29 @@ yyreduce:
 					statementVector.push_back("call " + *((yyvsp[-3].op_val)) + ", " + temp);
 					opVector.push_back(temp);
 				}
-#line 2537 "mini_l.tab.c" /* yacc.c:1646  */
+#line 2536 "mini_l.tab.c" /* yacc.c:1646  */
     break;
 
   case 82:
-#line 909 "mini_l.y" /* yacc.c:1646  */
+#line 908 "mini_l.y" /* yacc.c:1646  */
     {
 				pStack.push(opVector.at(opVector.size() - 1));
 				if (!opVector.empty()) opVector.pop_back();
 			}
-#line 2546 "mini_l.tab.c" /* yacc.c:1646  */
+#line 2545 "mini_l.tab.c" /* yacc.c:1646  */
     break;
 
   case 83:
-#line 914 "mini_l.y" /* yacc.c:1646  */
+#line 913 "mini_l.y" /* yacc.c:1646  */
     {
 				pStack.push(opVector.at(opVector.size() - 1));
 				if (!opVector.empty()) opVector.pop_back();
 			}
-#line 2555 "mini_l.tab.c" /* yacc.c:1646  */
+#line 2554 "mini_l.tab.c" /* yacc.c:1646  */
     break;
 
   case 84:
-#line 919 "mini_l.y" /* yacc.c:1646  */
+#line 918 "mini_l.y" /* yacc.c:1646  */
     {
 				string temp = generate1();
 				idtypeVector.push_back("INTEGER");
@@ -2574,11 +2573,11 @@ yyreduce:
 				}
 				opVector.push_back(temp);
 			}
-#line 2578 "mini_l.tab.c" /* yacc.c:1646  */
+#line 2577 "mini_l.tab.c" /* yacc.c:1646  */
     break;
 
   case 85:
-#line 938 "mini_l.y" /* yacc.c:1646  */
+#line 937 "mini_l.y" /* yacc.c:1646  */
     {
 				string temp = generate1();
 				idVector.push_back(temp);
@@ -2590,33 +2589,33 @@ yyreduce:
 				num << (yyvsp[0].val);
 				statementVector.push_back("= " + temp + ", " + num.str());
 			}
-#line 2594 "mini_l.tab.c" /* yacc.c:1646  */
+#line 2593 "mini_l.tab.c" /* yacc.c:1646  */
     break;
 
   case 86:
-#line 950 "mini_l.y" /* yacc.c:1646  */
+#line 949 "mini_l.y" /* yacc.c:1646  */
     {
 				while(pStack.size() < 0 || pStack.size() > 0)
                 {
                     statementVector.push_back("param " + pStack.top());
                 }
 			}
-#line 2605 "mini_l.tab.c" /* yacc.c:1646  */
+#line 2604 "mini_l.tab.c" /* yacc.c:1646  */
     break;
 
   case 87:
-#line 958 "mini_l.y" /* yacc.c:1646  */
+#line 957 "mini_l.y" /* yacc.c:1646  */
     {
 				if (undeclaredVariable("_" + *((yyvsp[0].op_val)))) {
 					semanticError = true;
 				}
 				opVector.push_back("_" + *((yyvsp[0].op_val)));
 			}
-#line 2616 "mini_l.tab.c" /* yacc.c:1646  */
+#line 2615 "mini_l.tab.c" /* yacc.c:1646  */
     break;
 
   case 88:
-#line 965 "mini_l.y" /* yacc.c:1646  */
+#line 964 "mini_l.y" /* yacc.c:1646  */
     {
 				string operandLatest = opVector.at(-1 + opVector.size());
 				opVector.pop_back();
@@ -2624,11 +2623,11 @@ yyreduce:
 				string opStatement = "[]" + temp + "," + operandLatest;
 				opVector.push_back(opStatement);
 			}
-#line 2628 "mini_l.tab.c" /* yacc.c:1646  */
+#line 2627 "mini_l.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 2632 "mini_l.tab.c" /* yacc.c:1646  */
+#line 2631 "mini_l.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2856,7 +2855,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 973 "mini_l.y" /* yacc.c:1906  */
+#line 972 "mini_l.y" /* yacc.c:1906  */
 
 int yyerror(string s)
 {

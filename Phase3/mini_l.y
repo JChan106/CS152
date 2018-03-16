@@ -890,7 +890,6 @@ identifierTerm: IDENTIFIER LPAREN identifierH RPAREN
 					{
 						if(fVector.at(i) == *($1))
 						{
-							cout << fVector.at(i) << "O.O" << endl;
 							functionErr = false;
 						}
 					}

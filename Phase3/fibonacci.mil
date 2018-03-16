@@ -1,6 +1,4 @@
 func fibonacci
-fibonacciO.O
-fibonacciO.O
 . _k
 . _tempvar_0
 . _tempvar_1
@@ -39,7 +37,6 @@ call fibonacci, _tempvar_11
 ret _tempvar_12
 endfunc
 func main
-fibonacciO.O
 . _n
 . _fib_n
 . _tempvar_13
